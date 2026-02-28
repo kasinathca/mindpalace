@@ -5,6 +5,7 @@
   "description": "Mind Palace — REST API + background workers",
   "main": "dist/index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "tsx watch src/index.ts",
     "worker:dev": "tsx watch src/workers/worker.ts",
     "build": "tsc --project tsconfig.json",

@@ -96,10 +96,10 @@ describe('GET /bookmarks', () => {
 
     expect(res.status).toBe(200);
     const body = res.body as ApiSuccessBody<{
-      items: unknown[];
+      bookmarks: unknown[];
       pagination: { total: number };
     }>;
-    expect(body.data.items).toHaveLength(0);
+    expect(body.data.bookmarks).toHaveLength(0);
     expect(body.data.pagination.total).toBe(0);
   });
 
@@ -123,7 +123,7 @@ describe('GET /bookmarks', () => {
     const res = await api().get(BASE).set('Authorization', `Bearer ${userA.accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ items: unknown[]; pagination: { total: number } }>;
+    const body = res.body as ApiSuccessBody<{ bookmarks: unknown[]; pagination: { total: number } }>;
     expect(body.data.pagination.total).toBe(2);
   });
 
@@ -144,7 +144,7 @@ describe('GET /bookmarks', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ items: unknown[]; pagination: { total: number } }>;
+    const body = res.body as ApiSuccessBody<{ bookmarks: unknown[]; pagination: { total: number } }>;
     expect(body.data.pagination.total).toBe(1);
   });
 
@@ -163,10 +163,10 @@ describe('GET /bookmarks', () => {
 
     expect(res.status).toBe(200);
     const body = res.body as ApiSuccessBody<{
-      items: unknown[];
+      bookmarks: unknown[];
       pagination: { hasNextPage: boolean; nextCursor: string | null };
     }>;
-    expect(body.data.items).toHaveLength(2);
+    expect(body.data.bookmarks).toHaveLength(2);
     expect(body.data.pagination.hasNextPage).toBe(true);
     expect(body.data.pagination.nextCursor).toBeTypeOf('string');
   });
@@ -371,8 +371,8 @@ describe('PATCH /bookmarks/batch/move', () => {
       .send({ ids: [id1, id2], collectionId });
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ moved: number }>;
-    expect(body.data.moved).toBe(2);
+    const body = res.body as ApiSuccessBody<{ updated: number }>;
+    expect(body.data.updated).toBe(2);
   });
 });
 

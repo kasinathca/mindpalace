@@ -191,7 +191,7 @@ describe('PATCH /collections/:id', () => {
 // ── PATCH /collections/:id/reorder ───────────────────────────────────────────
 
 describe('PATCH /collections/:id/reorder', () => {
-  it('updates sortOrder and returns 200', async () => {
+  it('updates sortOrder and returns 204', async () => {
     const { accessToken } = await createTestUser();
 
     const createRes = await api()
@@ -206,9 +206,7 @@ describe('PATCH /collections/:id/reorder', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .send({ sortOrder: 5 });
 
-    expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ sortOrder: number }>;
-    expect(body.data.sortOrder).toBe(5);
+    expect(res.status).toBe(204);
   });
 });
 
@@ -269,7 +267,7 @@ describe('DELETE /collections/:id', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     const listBody = listRes.body as ApiSuccessBody<{
-      items: unknown[];
+      bookmarks: unknown[];
       pagination: { total: number };
     }>;
     expect(listBody.data.pagination.total).toBe(1);

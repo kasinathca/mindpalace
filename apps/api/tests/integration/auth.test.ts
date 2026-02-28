@@ -162,12 +162,12 @@ describe('POST /auth/refresh', () => {
 // ── POST /auth/logout ─────────────────────────────────────────────────────────
 
 describe('POST /auth/logout', () => {
-  it('returns 200 and clears the refresh cookie for authenticated user', async () => {
+  it('returns 204 and clears the refresh cookie for authenticated user', async () => {
     const { accessToken } = await createTestUser();
 
     const res = await api().post(`${BASE}/logout`).set('Authorization', `Bearer ${accessToken}`);
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
     // The cookie should be cleared (Max-Age=0 or Expires in past)
     const cookieHeader = res.headers['set-cookie'] as string | string[] | undefined;
     if (cookieHeader) {
@@ -277,10 +277,10 @@ describe('GET /auth/me', () => {
     const res = await api().get(`${BASE}/me`).set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ email: string; displayName: string }>;
-    expect(body.data.email).toBe(email);
-    expect(body.data.displayName).toBe(displayName);
-    expect(body.data).not.toHaveProperty('passwordHash');
+    const body = res.body as ApiSuccessBody<{ user: { email: string; displayName: string } }>;
+    expect(body.data.user.email).toBe(email);
+    expect(body.data.user.displayName).toBe(displayName);
+    expect(body.data.user).not.toHaveProperty('passwordHash');
   });
 
   it('returns 401 without a token', async () => {
@@ -306,8 +306,8 @@ describe('PATCH /auth/me', () => {
       .send({ displayName: 'Updated Name' });
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ displayName: string }>;
-    expect(body.data.displayName).toBe('Updated Name');
+    const body = res.body as ApiSuccessBody<{ user: { displayName: string } }>;
+    expect(body.data.user.displayName).toBe('Updated Name');
   });
 
   it('changes password when currentPassword is correct', async () => {

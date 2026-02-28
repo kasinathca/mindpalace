@@ -184,3 +184,51 @@ data/traffic_logs.csv
 implementation_plan.md
 walkthrough.md
 task.md
+
+# ─────────────────────────────────────────────────────────────
+# Node.js / TypeScript / pnpm Monorepo
+# ─────────────────────────────────────────────────────────────
+
+# Dependencies — never committed
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Test coverage reports
+coverage/
+
+# Vite dev server temp files
+vite.config.ts.timestamp-*
+
+# Turbo (if ever added)
+.turbo/
+
+# pnpm store (local cache — not project files)
+.pnpm-store/
+# pnpm-lock.yaml is intentionally NOT ignored (ensures reproducible installs)
+
+# ─────────────────────────────────────────────────────────────
+# Application Runtime Artefacts
+# ─────────────────────────────────────────────────────────────
+
+# Uploaded files (thumbnails, favicons, permanent copies)
+# These are generated at runtime and should not be committed
+apps/api/uploads/
+
+# Playwright browser binaries and test reports
+apps/web/playwright-report/
+apps/web/test-results/
+
+# ─────────────────────────────────────────────────────────────
+# Environment Files  (SECURITY — never commit real credentials)
+# ─────────────────────────────────────────────────────────────
+# .env is already ignored above in the "Environments" section
+# Belt-and-suspenders entries:
+.env.local
+.env.*.local
+# .env.example is intentionally NOT ignored — it's a template with no real secrets

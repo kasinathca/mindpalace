@@ -1,0 +1,263 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// prisma/schema.prisma — Mind Palace database schema
+//
+// Models:
+//   User                → account, preferences, auth
+//   PasswordResetToken  → one-time password reset tokens
+//   Collection          → hierarchical folders (self-referential)
+//   Bookmark            → saved URLs with FTS tsvector column
+//   Tag                 → user-defined labels
+//   BookmarkTag         → M:N junction: Bookmark ↔ Tag
+//   PermanentCopy       → offline snapshots of bookmark content
+//   Annotation          → highlights and notes on permanent copies
+//
+// FTS note:
+//   The `searchVector` Unsupported column is maintained by a database trigger
+//   (see migrations). Prisma cannot write to it but can read it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Theme {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum ViewMode {
+  GRID
+  LIST
+  COMPACT
+}
+
+enum LinkStatus {
+  OK        // last check returned 2xx
+  BROKEN    // last check returned 4xx/5xx or timed out
+  UNCHECKED // not yet checked
+  REDIRECTED // URL moved permanently (301)
+}
+
+enum AnnotationType {
+  HIGHLIGHT
+  NOTE
+  BOOKMARK_WITHIN_PAGE
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  displayName   String
+  avatarUrl     String?
+  emailVerified Boolean  @default(false)
+
+  // Preferences (stored inline — no separate table needed)
+  theme         Theme    @default(SYSTEM)
+  defaultView   ViewMode @default(GRID)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  collections        Collection[]
+  bookmarks          Bookmark[]
+  tags               Tag[]
+  passwordResetTokens PasswordResetToken[]
+  annotations        Annotation[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ─── PasswordResetToken ──────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // store hashed token, never plain text
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
+
+// ─── Collection ──────────────────────────────────────────────────────────────
+// Self-referential tree limited to MAX_NESTING_DEPTH (enforced in service layer)
+
+model Collection {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  color       String? // hex colour for UI badge, e.g. "#6366F1"
+  icon        String? // lucide icon name or emoji
+  isPublic    Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  // Self-referential parent ↔ children
+  parentId  String?
+  parent    Collection?  @relation("CollectionTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Collection[] @relation("CollectionTree")
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bookmarks Bookmark[]
+
+  @@index([userId])
+  @@index([parentId])
+  @@map("collections")
+}
+
+// ─── Bookmark ────────────────────────────────────────────────────────────────
+
+model Bookmark {
+  id          String     @id @default(cuid())
+  url         String
+  title       String
+  description String?
+  faviconUrl  String?
+  coverImageUrl String?
+  notes       String?    // user's personal notes (Markdown)
+  isPublic    Boolean    @default(false)
+  isPinned    Boolean    @default(false)
+  isFavourite Boolean    @default(false)
+  linkStatus  LinkStatus @default(UNCHECKED)
+  lastCheckedAt DateTime?
+  readAt      DateTime?  // null = unread
+
+  // Full-text search vector — populated by DB trigger in migration
+  // Prisma cannot generate this column; migrations handle it
+  searchVector Unsupported("tsvector")?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  collectionId String?
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tags          BookmarkTag[]
+  permanentCopy PermanentCopy?
+
+  @@index([userId])
+  @@index([collectionId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, isPinned])
+  @@index([userId, isFavourite])
+  @@index([userId, linkStatus])
+  // GIN index for FTS — created in migration SQL:
+  // CREATE INDEX bookmarks_search_vector_gin ON bookmarks USING GIN (search_vector);
+  @@map("bookmarks")
+}
+
+// ─── Tag ─────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String // lowercase, trimmed (enforced in service)
+  color String? // hex colour
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  bookmarks BookmarkTag[]
+
+  @@unique([userId, name]) // tag names are unique per user
+  @@index([userId])
+  @@map("tags")
+}
+
+// ─── BookmarkTag (M:N junction) ──────────────────────────────────────────────
+
+model BookmarkTag {
+  bookmarkId String
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([bookmarkId, tagId])
+  @@index([tagId])
+  @@map("bookmark_tags")
+}
+
+// ─── PermanentCopy ───────────────────────────────────────────────────────────
+// Offline snapshot: raw HTML, Readability-extracted article body, screenshot
+
+model PermanentCopy {
+  id             String  @id @default(cuid())
+  rawHtml        String? // full page HTML
+  articleContent String? // Readability-extracted text (Markdown)
+  screenshotPath String? // path relative to UPLOADS_DIR
+  mimeType       String  @default("text/html")
+  sizeBytes      Int?
+  capturedAt     DateTime @default(now())
+  failureReason  String? // populated if capture failed
+
+  bookmarkId String   @unique
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  annotations Annotation[]
+
+  @@map("permanent_copies")
+}
+
+// ─── Annotation ──────────────────────────────────────────────────────────────
+
+model Annotation {
+  id      String         @id @default(cuid())
+  type    AnnotationType @default(HIGHLIGHT)
+  content String         // highlighted text or note body
+
+  // Position data persisted as JSON (start/end offsets + XPath or CSS selector)
+  positionData Json?
+
+  color   String? // highlight colour (hex)
+  isPublic Boolean @default(false)
+
+  permanentCopyId String
+  permanentCopy   PermanentCopy @relation(fields: [permanentCopyId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([permanentCopyId])
+  @@index([userId])
+  @@map("annotations")
+}

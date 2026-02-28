@@ -1,0 +1,150 @@
+name: CI
+
+# Runs on every push to any branch, and on all pull requests targeting main or develop.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, develop]
+
+# Cancel any in-progress runs for the same branch when a new push arrives.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # JOB 1: Lint + Type Check + Unit Tests
+  # Fast checks that don't need infrastructure (no DB, no Redis).
+  # ────────────────────────────────────────────────────────────
+  quality:
+    name: Lint · Type Check · Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm run type-check
+
+      - name: Unit tests
+        run: pnpm run test:unit
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 2: Integration Tests
+  # Requires a real PostgreSQL database and Redis instance.
+  # ────────────────────────────────────────────────────────────
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: quality # Only run if quality checks pass
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: mindpalace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d mindpalace_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run database migrations (test DB)
+        working-directory: apps/api
+        run: pnpm run db:migrate:test
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/mindpalace_test
+
+      - name: Integration tests
+        run: pnpm run test:integration
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/mindpalace_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test-access-secret-that-is-at-least-32-chars
+          JWT_REFRESH_SECRET: test-refresh-secret-that-is-at-least-32-chars
+          NODE_ENV: test
+          BCRYPT_ROUNDS: 4
+          # SMTP and CORS are injected via vitest.config.ts integration env block;
+          # values here only exist as documented fallbacks.
+          CORS_ORIGIN: http://localhost:5173
+
+  # ────────────────────────────────────────────────────────────
+  # JOB 3: Dependency Security Audit
+  # Fails if any HIGH or CRITICAL CVE is found in dependencies.
+  # ────────────────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit dependencies
+        run: pnpm audit --audit-level=high

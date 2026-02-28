@@ -1,0 +1,17 @@
+{
+  "name": "@mindpalace/shared",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared TypeScript types used by both the API and the web frontend",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  // Extends the root API tsconfig but covers the tests/ directory too.
+  // Used by the TypeScript ESLint project service when linting test files.
+  // NOT used for building (noEmit: true) — only for type checking + linting.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["./**/*", "../src/**/*"],
+  "exclude": ["../node_modules", "../dist", "../coverage"]
+}

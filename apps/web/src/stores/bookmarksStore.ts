@@ -1,0 +1,214 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// stores/bookmarksStore.ts — Zustand bookmark state store
+//
+// Manages: bookmark list, pagination, filters, loading state, error state
+// Supports optimistic UI: items update immediately and roll back on error.
+// ─────────────────────────────────────────────────────────────────────────────
+import { create } from 'zustand';
+import {
+  apiListBookmarks,
+  apiCreateBookmark,
+  apiUpdateBookmark,
+  apiDeleteBookmark,
+  apiBatchDeleteBookmarks,
+  type BookmarkItem,
+  type CreateBookmarkParams,
+  type UpdateBookmarkParams,
+} from '../api/bookmarks.api.js';
+import type { BookmarkFilters } from '@mindpalace/shared';
+
+interface PaginationState {
+  total: number;
+  limit: number;
+  nextCursor: string | null;
+  hasNextPage: boolean;
+}
+
+interface BookmarksState {
+  bookmarks: BookmarkItem[];
+  pagination: PaginationState;
+  filters: BookmarkFilters;
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface BookmarksActions {
+  fetchBookmarks: (filters?: BookmarkFilters, replace?: boolean) => Promise<void>;
+  fetchNextPage: () => Promise<void>;
+  createBookmark: (input: CreateBookmarkParams) => Promise<BookmarkItem>;
+  updateBookmark: (id: string, input: UpdateBookmarkParams) => Promise<void>;
+  deleteBookmark: (id: string) => Promise<void>;
+  batchDeleteBookmarks: (ids: string[]) => Promise<void>;
+  setFilters: (filters: BookmarkFilters) => void;
+  clearError: () => void;
+  reset: () => void;
+}
+
+type BookmarksStore = BookmarksState & BookmarksActions;
+
+const defaultPagination: PaginationState = {
+  total: 0,
+  limit: 24,
+  nextCursor: null,
+  hasNextPage: false,
+};
+
+export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
+  bookmarks: [],
+  pagination: defaultPagination,
+  filters: {},
+  isLoading: false,
+  error: null,
+
+  fetchBookmarks: async (filters, replace = true) => {
+    set({ isLoading: true, error: null });
+    if (filters) set({ filters });
+
+    try {
+      const result = await apiListBookmarks({ ...get().filters, ...filters });
+      set((state) => ({
+        bookmarks: replace ? result.bookmarks : [...state.bookmarks, ...result.bookmarks],
+        pagination: result.pagination,
+        isLoading: false,
+      }));
+    } catch (err: unknown) {
+      set({
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Failed to load bookmarks.',
+      });
+    }
+  },
+
+  fetchNextPage: async () => {
+    const { pagination, filters, isLoading } = get();
+    if (!pagination.hasNextPage || isLoading) return;
+    await get().fetchBookmarks(
+      pagination.nextCursor !== null
+        ? { ...filters, cursor: pagination.nextCursor }
+        : { ...filters },
+      false,
+    );
+  },
+
+  createBookmark: async (input) => {
+    // Optimistic update: add a placeholder immediately
+    const placeholder: BookmarkItem = {
+      id: `optimistic-${Date.now()}`,
+      url: input.url,
+      title: input.title ?? new URL(input.url).hostname,
+      description: input.description ?? null,
+      faviconUrl: null,
+      coverImageUrl: null,
+      notes: input.notes ?? null,
+      isPublic: input.isPublic ?? false,
+      isPinned: input.isPinned ?? false,
+      isFavourite: input.isFavourite ?? false,
+      linkStatus: 'UNCHECKED',
+      lastCheckedAt: null,
+      readAt: null,
+      userId: '',
+      collectionId: input.collectionId ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      tags: [],
+    };
+
+    set((state) => ({ bookmarks: [placeholder, ...state.bookmarks] }));
+
+    try {
+      const created = await apiCreateBookmark(input);
+      // Replace placeholder with real data
+      set((state) => ({
+        bookmarks: state.bookmarks.map((b) => (b.id === placeholder.id ? created : b)),
+        pagination: { ...state.pagination, total: state.pagination.total + 1 },
+      }));
+      return created;
+    } catch (err: unknown) {
+      // Roll back optimistic update
+      set((state) => ({
+        bookmarks: state.bookmarks.filter((b) => b.id !== placeholder.id),
+        error: err instanceof Error ? err.message : 'Failed to save bookmark.',
+      }));
+      throw err;
+    }
+  },
+
+  updateBookmark: async (id, input) => {
+    const previous = get().bookmarks.find((b) => b.id === id);
+
+    // Optimistic update — exclude `tags` from input spread since it's string[] but BookmarkItem.tags is Tag[]
+    const { tags: _tags, ...inputWithoutTags } = input;
+    set((state) => ({
+      bookmarks: state.bookmarks.map((b) => (b.id === id ? { ...b, ...inputWithoutTags } : b)),
+    }));
+
+    try {
+      const updated = await apiUpdateBookmark(id, input);
+      set((state) => ({
+        bookmarks: state.bookmarks.map((b) => (b.id === id ? updated : b)),
+      }));
+    } catch (err: unknown) {
+      // Roll back
+      if (previous) {
+        set((state) => ({
+          bookmarks: state.bookmarks.map((b) => (b.id === id ? previous : b)),
+          error: err instanceof Error ? err.message : 'Failed to update bookmark.',
+        }));
+      }
+      throw err;
+    }
+  },
+
+  deleteBookmark: async (id) => {
+    const previous = get().bookmarks;
+
+    // Optimistic removal
+    set((state) => ({
+      bookmarks: state.bookmarks.filter((b) => b.id !== id),
+      pagination: { ...state.pagination, total: state.pagination.total - 1 },
+    }));
+
+    try {
+      await apiDeleteBookmark(id);
+    } catch (err: unknown) {
+      set({
+        bookmarks: previous,
+        error: err instanceof Error ? err.message : 'Failed to delete bookmark.',
+      });
+      throw err;
+    }
+  },
+
+  batchDeleteBookmarks: async (ids) => {
+    const previous = get().bookmarks;
+
+    set((state) => ({
+      bookmarks: state.bookmarks.filter((b) => !ids.includes(b.id)),
+      pagination: {
+        ...state.pagination,
+        total: state.pagination.total - ids.length,
+      },
+    }));
+
+    try {
+      await apiBatchDeleteBookmarks(ids);
+    } catch (err: unknown) {
+      set({
+        bookmarks: previous,
+        error: err instanceof Error ? err.message : 'Failed to delete bookmarks.',
+      });
+      throw err;
+    }
+  },
+
+  setFilters: (filters) => set({ filters }),
+  clearError: () => set({ error: null }),
+  reset: () =>
+    set({
+      bookmarks: [],
+      pagination: defaultPagination,
+      filters: {},
+      isLoading: false,
+      error: null,
+    }),
+}));

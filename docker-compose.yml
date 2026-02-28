@@ -1,0 +1,123 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mind Palace — Local Development Stack
+# ─────────────────────────────────────────────────────────────────────────────
+# Commands:
+#   Start all infrastructure:  docker-compose up -d postgres redis
+#   Start everything:          docker-compose up -d
+#   View logs:                 docker-compose logs -f
+#   Stop everything:           docker-compose down
+#   Nuclear reset (wipes data): docker-compose down -v
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ────────────────────────────
+  # PostgreSQL 16 — Primary Database
+  # ────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: mindpalace_postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: mp_user
+      POSTGRES_PASSWORD: mp_pass
+      POSTGRES_DB: mindpalace
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U mp_user -d mindpalace']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ────────────────────────────
+  # Redis 7 — Cache + Job Queue Broker
+  # ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mindpalace_redis
+    ports:
+      - '6379:6379'
+    # Enable AOF persistence so job queue data survives container restarts
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ────────────────────────────
+  # API Server (optional — for running fully containerised)
+  # In development, run the API with "pnpm run dev" instead.
+  # ────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: mindpalace_api
+    ports:
+      - '3000:3000'
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://mp_user:mp_pass@postgres:5432/mindpalace
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/v1/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - full # Only starts with: docker-compose --profile full up
+    restart: unless-stopped
+
+  # ────────────────────────────
+  # Background Worker
+  # ────────────────────────────
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: mindpalace_worker
+    command: node dist/workers/worker.js
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://mp_user:mp_pass@postgres:5432/mindpalace
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - api
+    profiles:
+      - full
+    restart: unless-stopped
+
+  # ────────────────────────────
+  # Frontend (Nginx — serves the built React SPA)
+  # ────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: mindpalace_web
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+    profiles:
+      - full
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

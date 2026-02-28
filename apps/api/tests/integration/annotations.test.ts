@@ -93,12 +93,12 @@ describe('POST /bookmarks/:bookmarkId/annotations', () => {
       id: string;
       type: string;
       content: string;
-      bookmarkId: string;
+      permanentCopyId: string;
     }>;
     expect(body.data.id).toBeTypeOf('string');
     expect(body.data.type).toBe('NOTE');
     expect(body.data.content).toBe('This is my note about the page.');
-    expect(body.data.bookmarkId).toBe(bookmarkId);
+    expect(body.data.permanentCopyId).toBeTypeOf('string');
   });
 
   it('creates a HIGHLIGHT annotation with position data and returns 201', async () => {

@@ -79,8 +79,8 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
   try {
     // Accept token from cookie (browser clients) or body (API/mobile clients)
     const rawToken: string | undefined =
-      (req.cookies as Record<string, string>)[COOKIE.REFRESH_TOKEN] ??
-      (req.body as { refreshToken?: string }).refreshToken;
+      (req.cookies && (req.cookies as Record<string, string>)[COOKIE.REFRESH_TOKEN]) ??
+      (req.body as { refreshToken?: string })?.refreshToken;
 
     if (!rawToken) {
       res.status(HTTP.UNAUTHORISED).json({ success: false, error: 'Refresh token not provided.' });

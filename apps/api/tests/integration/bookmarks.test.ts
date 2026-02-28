@@ -439,7 +439,7 @@ describe('GET /bookmarks/export', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/application\/json/);
-    const body = res.body as Array<{ url: string; title: string }>;
+    const body = (res.body as ApiSuccessBody<Array<{ url: string; title: string }>>).data;
     expect(Array.isArray(body)).toBe(true);
     expect(body.some((b) => b.url === 'https://export-test.example.com')).toBe(true);
   });

@@ -49,11 +49,11 @@ describe('GET /search', () => {
 
     expect(res.status).toBe(200);
     const body = res.body as ApiSuccessBody<{
-      items: unknown[];
+      bookmarks: unknown[];
       total: number;
     }>;
     expect(body.success).toBe(true);
-    expect(body.data.items).toHaveLength(0);
+    expect(body.data.bookmarks).toHaveLength(0);
     expect(body.data.total).toBe(0);
   });
 
@@ -78,11 +78,11 @@ describe('GET /search', () => {
 
     expect(res.status).toBe(200);
     const body = res.body as ApiSuccessBody<{
-      items: Array<{ title: string }>;
+      bookmarks: Array<{ title: string }>;
       total: number;
     }>;
     expect(body.data.total).toBeGreaterThanOrEqual(1);
-    expect(body.data.items.some((item) => item.title.includes('VitestSearchIntegration'))).toBe(
+    expect(body.data.bookmarks.some((item) => item.title.includes('VitestSearchIntegration'))).toBe(
       true,
     );
   });
@@ -125,8 +125,8 @@ describe('GET /search', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ items: unknown[]; total: number }>;
-    expect(body.data.items).toHaveLength(2);
+    const body = res.body as ApiSuccessBody<{ bookmarks: unknown[]; total: number }>;
+    expect(body.data.bookmarks).toHaveLength(2);
     expect(body.data.total).toBeGreaterThanOrEqual(5);
   });
 });

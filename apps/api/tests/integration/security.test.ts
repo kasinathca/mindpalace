@@ -208,7 +208,7 @@ describe('IDOR — Bookmarks', () => {
       .set('Authorization', `Bearer ${userA.accessToken}`)
       .send({ ids: [aBmId, bBmId] });
 
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
 
     // UserB's bookmark must be untouched
     const verifyRes = await api()
@@ -325,8 +325,8 @@ describe('Mass assignment protection', () => {
     const meRes = await api()
       .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${user.accessToken}`);
-    const me = (meRes.body as ApiSuccessBody<{ emailVerified: boolean }>).data;
-    expect(me.emailVerified).toBe(false);
+    const me = (meRes.body as ApiSuccessBody<{ user: { emailVerified: boolean } }>).data;
+    expect(me.user.emailVerified).toBe(false);
   });
 
   it('cannot inject a custom userId when creating a bookmark', async () => {

@@ -34,6 +34,7 @@ export default tseslint.config(
         // but this monorepo only has tsconfig.base.json at the root.
         project: [
           './apps/api/tsconfig.json',
+          './apps/api/tests/tsconfig.json',
           './apps/web/tsconfig.json',
           './packages/shared/tsconfig.json',
         ],

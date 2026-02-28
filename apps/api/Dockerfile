@@ -17,7 +17,9 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
 
 # Install all workspace dependencies (devDeps required for tsc compilation).
-RUN corepack enable pnpm && pnpm install --frozen-lockfile
+# --ignore-scripts: postinstall runs prisma generate but schema isn't copied yet;
+# we run it explicitly below after COPY.
+RUN corepack enable pnpm && pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy source files.
 COPY apps/api ./apps/api

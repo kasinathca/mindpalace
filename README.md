@@ -6,11 +6,9 @@ Mind Palace lets you save, organise, search, and annotate every URL in your digi
 
 ## Status
 
-| Branch | CI                                                                                                                                            |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch | CI                                                                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `main` | [![CI](https://github.com/kasinathca/mindpalace/actions/workflows/ci.yml/badge.svg)](https://github.com/kasinathca/mindpalace/actions/workflows/ci.yml) |
-
-
 
 ---
 

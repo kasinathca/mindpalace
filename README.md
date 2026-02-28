@@ -8,9 +8,9 @@ Mind Palace lets you save, organise, search, and annotate every URL in your digi
 
 | Branch | CI                                                                                                                                            |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main` | [![CI](https://github.com/OWNER/mindpalace/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/mindpalace/actions/workflows/ci.yml) |
+| `main` | [![CI](https://github.com/kasinathca/mindpalace/actions/workflows/ci.yml/badge.svg)](https://github.com/kasinathca/mindpalace/actions/workflows/ci.yml) |
 
-> **Replace `OWNER` above** with your GitHub username once the repo is pushed.
+
 
 ---
 

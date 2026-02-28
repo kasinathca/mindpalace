@@ -169,7 +169,7 @@ export async function createBookmark(
 
   // Upsert tags (find-or-create by name per user)
   const tagRecords = await Promise.all(
-    input.tags.map(async (tagName) => {
+    input.tags.map((tagName) => {
       const normalised = tagName.trim().toLowerCase();
       return prisma.tag.upsert({
         where: { userId_name: { userId, name: normalised } },
@@ -228,7 +228,7 @@ export async function updateBookmark(
   let tagOps: Prisma.BookmarkUpdateInput['tags'] | undefined;
   if (input.tags !== undefined) {
     const tagRecords = await Promise.all(
-      input.tags.map(async (tagName) => {
+      input.tags.map((tagName) => {
         const normalised = tagName.trim().toLowerCase();
         return prisma.tag.upsert({
           where: { userId_name: { userId, name: normalised } },
@@ -397,7 +397,7 @@ export async function importBookmarks(
 
       // Upsert tags
       const tagRecords = await Promise.all(
-        item.tags.map(async (name) =>
+        item.tags.map((name) =>
           prisma.tag.upsert({
             where: { userId_name: { userId, name } },
             create: { userId, name },

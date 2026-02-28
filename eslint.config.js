@@ -28,7 +28,15 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // Explicitly list each workspace package's tsconfig so that TypeScript
+        // ESLint can resolve imported types (e.g. @prisma/client, pino).
+        // projectService: true requires a tsconfig.json at tsconfigRootDir,
+        // but this monorepo only has tsconfig.base.json at the root.
+        project: [
+          './apps/api/tsconfig.json',
+          './apps/web/tsconfig.json',
+          './packages/shared/tsconfig.json',
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },

@@ -73,7 +73,7 @@ jobs:
           docker run --rm \
             -e DATABASE_URL="${DATABASE_URL}" \
             mindpalace-api:${{ github.sha }} \
-            pnpm prisma migrate deploy
+            npx prisma migrate deploy --schema=./prisma/schema.prisma
 
       # ── Deploy ─────────────────────────────────────────────────────────────
       - name: Deploy application

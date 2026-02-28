@@ -1,0 +1,36 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .gitattributes — Enforce LF line endings for all text files in this repo.
+#
+# Without this, Windows git (core.autocrlf=true by default) converts LF→CRLF
+# on checkout, which causes prettier --check to fail in CI (endOfLine: "lf").
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Default: normalise all text files to LF in the repo and on checkout.
+* text=auto eol=lf
+
+# Force LF for all source and config files.
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.sql   text eol=lf
+*.sh    text eol=lf
+*.env*  text eol=lf
+
+# Binary files — do not touch line endings.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.svg   text eol=lf

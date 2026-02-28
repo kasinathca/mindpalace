@@ -39,8 +39,8 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
-# Production dependencies only (no devDeps).
-RUN corepack enable pnpm && pnpm install --frozen-lockfile --prod
+# Production dependencies only (no devDeps, no lifecycle scripts — husky is absent).
+RUN corepack enable pnpm && pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # Compiled TypeScript output.
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

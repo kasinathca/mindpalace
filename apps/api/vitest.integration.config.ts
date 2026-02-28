@@ -13,6 +13,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     testTimeout: 30000, // 30s per test for DB operations
+    fileParallelism: false, // Run test files sequentially to avoid concurrent DB wipes
     // Applied before every test file — mocks email and exports cleanDb().
     setupFiles: ['./tests/integration/setup.ts'],
     env: {

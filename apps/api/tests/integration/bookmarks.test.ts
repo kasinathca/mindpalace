@@ -123,7 +123,10 @@ describe('GET /bookmarks', () => {
     const res = await api().get(BASE).set('Authorization', `Bearer ${userA.accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ bookmarks: unknown[]; pagination: { total: number } }>;
+    const body = res.body as ApiSuccessBody<{
+      bookmarks: unknown[];
+      pagination: { total: number };
+    }>;
     expect(body.data.pagination.total).toBe(2);
   });
 
@@ -144,7 +147,10 @@ describe('GET /bookmarks', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    const body = res.body as ApiSuccessBody<{ bookmarks: unknown[]; pagination: { total: number } }>;
+    const body = res.body as ApiSuccessBody<{
+      bookmarks: unknown[];
+      pagination: { total: number };
+    }>;
     expect(body.data.pagination.total).toBe(1);
   });
 

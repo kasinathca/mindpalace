@@ -50,16 +50,18 @@ jobs:
       - name: Build API Docker image
         run: |
           docker build \
+            -f apps/api/Dockerfile \
             -t mindpalace-api:${{ github.sha }} \
             -t mindpalace-api:latest \
-            ./apps/api
+            .
 
       - name: Build web Docker image
         run: |
           docker build \
+            -f apps/web/Dockerfile \
             -t mindpalace-web:${{ github.sha }} \
             -t mindpalace-web:latest \
-            ./apps/web
+            .
 
       # ── Database migrations ────────────────────────────────────────────────
       - name: Run database migrations

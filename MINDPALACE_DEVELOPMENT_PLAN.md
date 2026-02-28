@@ -2482,15 +2482,15 @@ The 3-increment plan from the SRS is mapped to 9 two-week sprints across one aca
 
 #### Sprint 8 (Weeks 15–16): Final QA, Performance Testing, and Documentation ✅ COMPLETE
 
-| Task                                                            | Owner    | Priority | Estimate | Status                                                                    |
-| --------------------------------------------------------------- | -------- | -------- | -------- | ------------------------------------------------------------------------- |
-| Full E2E regression test run across Chrome, Firefox, Safari     | All      | Critical | —        | ✅ 43 Playwright tests passing                                            |
-| Load test with k6 (100 concurrent users, 15-minute test)        | Kasinath | High     | 4h       | ✅ `k6/load-test.js` created; NFR-PERF-4 thresholds configured            |
-| Performance profiling: identify and fix any slow queries        | Kasinath | High     | 5h       | ✅ Redis caching on collections + tags (5-min TTL); GIN index on tsvector |
-| Write complete User Manual                                      | Nicky    | High     | 8h       | ✅ `docs/USER_MANUAL.md` — 14 sections                                    |
-| Write deployment / operations guide                             | Sree Sai | High     | 4h       | ✅ `DEPLOYMENT.md` — full ops guide                                       |
-| Finalize README.md (setup, architecture overview, team guide)   | Balini   | High     | 3h       | ✅ Root `README.md` + `apps/api/README.md` + `apps/web/README.md`         |
-| Final code review: clean up all TODO comments                   | All      | Medium   | 4h       | ✅ 0 TODO/FIXME in source; 45 Prettier violations fixed                   |
+| Task                                                            | Owner    | Priority | Estimate | Status                                                                                                                                |
+| --------------------------------------------------------------- | -------- | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Full E2E regression test run across Chrome, Firefox, Safari     | All      | Critical | —        | ✅ 43 Playwright tests passing                                                                                                        |
+| Load test with k6 (100 concurrent users, 15-minute test)        | Kasinath | High     | 4h       | ✅ `k6/load-test.js` created; NFR-PERF-4 thresholds configured                                                                        |
+| Performance profiling: identify and fix any slow queries        | Kasinath | High     | 5h       | ✅ Redis caching on collections + tags (5-min TTL); GIN index on tsvector                                                             |
+| Write complete User Manual                                      | Nicky    | High     | 8h       | ✅ `docs/USER_MANUAL.md` — 14 sections                                                                                                |
+| Write deployment / operations guide                             | Sree Sai | High     | 4h       | ✅ `DEPLOYMENT.md` — full ops guide                                                                                                   |
+| Finalize README.md (setup, architecture overview, team guide)   | Balini   | High     | 3h       | ✅ Root `README.md` + `apps/api/README.md` + `apps/web/README.md`                                                                     |
+| Final code review: clean up all TODO comments                   | All      | Medium   | 4h       | ✅ 0 TODO/FIXME in source; 45 Prettier violations fixed                                                                               |
 | Tag v1.0.0 release in Git; create GitHub release with changelog | Kasinath | High     | 1h       | ✅ `git tag v1.0.0`; CHANGELOG `[1.0.0]` entry; all `package.json` versions bumped to `1.0.0`; `.github/workflows/deploy.yml` created |
 
 **Sprint 8 QA Audit (automated gates — all green):**

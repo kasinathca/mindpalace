@@ -21,3 +21,15 @@ redis.on('connect', () => {
 redis.on('error', (err: Error) => {
   logger.error({ err }, 'Redis connection error');
 });
+
+export async function closeRedisConnection(): Promise<void> {
+  if (redis.status === 'end') return;
+
+  try {
+    await redis.quit();
+    logger.info('Redis disconnected');
+  } catch (err) {
+    logger.warn({ err }, 'Redis quit failed, forcing disconnect');
+    redis.disconnect(false);
+  }
+}

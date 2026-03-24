@@ -10,9 +10,12 @@ import { useBookmarksStore } from '../stores/bookmarksStore.js';
 import { useCollectionsStore } from '../stores/collectionsStore.js';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard.js';
 import { AddBookmarkModal } from '../components/bookmarks/AddBookmarkModal.js';
+import { BatchActionBar } from '../components/bookmarks/BatchActionBar.js';
+import { FilterPanel, type BookmarkFilters as PanelFilters } from '../components/bookmarks/FilterPanel.js';
 import { Button } from '../components/ui/button.js';
 import { FullPageSpinner } from '../components/common/LoadingSpinner.js';
 import { EmptyState } from '../components/common/EmptyState.js';
+import type { BookmarkFilters } from '@mindpalace/shared';
 
 // ── ViewToggle icons ──────────────────────────────────────────────────────────
 
@@ -55,6 +58,16 @@ function ListIcon(): React.JSX.Element {
 export default function DashboardPage(): React.ReactElement {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [addModalOpen, setAddModalOpen] = useState(false);
+  // Multi-select state (for BatchActionBar)
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Filter panel visibility + active filters
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [panelFilters, setPanelFilters] = useState<PanelFilters>({
+    tagIds: [],
+    linkStatus: '',
+    isPinned: undefined,
+    isFavourite: undefined,
+  });
 
   const { bookmarks, pagination, isLoading, error, fetchBookmarks, fetchNextPage } =
     useBookmarksStore();
@@ -89,10 +102,19 @@ export default function DashboardPage(): React.ReactElement {
   }
   const collectionName = findCollectionName(tree, selectedId);
 
-  // Fetch bookmarks whenever the selected collection changes
+  // Fetch bookmarks whenever the selected collection OR active filters change
   useEffect(() => {
-    void fetchBookmarks({ ...(selectedId ? { collectionId: selectedId } : {}) }, true);
-  }, [selectedId, fetchBookmarks]);
+    const filters: BookmarkFilters = {
+      ...(selectedId ? { collectionId: selectedId } : {}),
+      ...(panelFilters.tagIds.length > 0 ? { tagIds: panelFilters.tagIds } : {}),
+      ...(panelFilters.linkStatus ? { linkStatus: panelFilters.linkStatus } : {}),
+      ...(panelFilters.isPinned !== undefined ? { isPinned: panelFilters.isPinned } : {}),
+      ...(panelFilters.isFavourite !== undefined ? { isFavourite: panelFilters.isFavourite } : {}),
+    };
+    void fetchBookmarks(filters, true);
+    // Clear selection when filters/collection changes
+    setSelectedIds([]);
+  }, [selectedId, panelFilters, fetchBookmarks]);
 
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -128,6 +150,36 @@ export default function DashboardPage(): React.ReactElement {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Filter toggle */}
+          <button
+            type="button"
+            aria-label="Toggle filters"
+            aria-pressed={showFilterPanel}
+            onClick={() => setShowFilterPanel((v) => !v)}
+            className={`rounded-md p-2 text-sm transition-colors ${
+              showFilterPanel
+                ? 'bg-primary text-primary-foreground'
+                : 'border border-border hover:bg-accent'
+            }`}
+            title="Filters"
+          >
+            {/* Filter icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"
+              />
+            </svg>
+          </button>
+
           {/* View toggle */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             <button
@@ -154,6 +206,15 @@ export default function DashboardPage(): React.ReactElement {
           <Button onClick={() => setAddModalOpen(true)}>+ Add Bookmark</Button>
         </div>
       </div>
+
+      {/* ── Filter panel ───────────────────────────────────────────── */}
+      {showFilterPanel && (
+        <FilterPanel
+          filters={panelFilters}
+          onChange={(f) => setPanelFilters(f)}
+          className="rounded-xl border border-border bg-card p-4"
+        />
+      )}
 
       {/* ── Error banner ───────────────────────────────────────────── */}
       {error && (
@@ -182,7 +243,17 @@ export default function DashboardPage(): React.ReactElement {
           {view === 'grid' ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {bookmarks.map((bookmark) => (
-                <BookmarkCard key={bookmark.id} bookmark={bookmark} view="grid" />
+                <BookmarkCard
+                  key={bookmark.id}
+                  bookmark={bookmark}
+                  view="grid"
+                  isSelected={selectedIds.includes(bookmark.id)}
+                  onToggleSelect={(id) =>
+                    setSelectedIds((prev) =>
+                      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                    )
+                  }
+                />
               ))}
             </div>
           ) : (
@@ -206,7 +277,16 @@ export default function DashboardPage(): React.ReactElement {
                       paddingBottom: '0.5rem',
                     }}
                   >
-                    <BookmarkCard bookmark={bookmark} view="list" />
+                    <BookmarkCard
+                      bookmark={bookmark}
+                      view="list"
+                      isSelected={selectedIds.includes(bookmark.id)}
+                      onToggleSelect={(id) =>
+                        setSelectedIds((prev) =>
+                          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                        )
+                      }
+                    />
                   </div>
                 );
               })}
@@ -230,6 +310,12 @@ export default function DashboardPage(): React.ReactElement {
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         {...(selectedId !== null ? { defaultCollectionId: selectedId } : {})}
+      />
+
+      {/* ── Batch action bar (floats when ≥1 bookmark is selected) ── */}
+      <BatchActionBar
+        selectedIds={selectedIds}
+        onClearSelection={() => setSelectedIds([])}
       />
     </div>
   );

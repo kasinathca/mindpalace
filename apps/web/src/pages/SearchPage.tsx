@@ -50,6 +50,8 @@ function SpinnerIcon(): React.JSX.Element {
 
 export default function SearchPage(): React.ReactElement {
   const { query, results, total, isSearching, error, setQuery, clearSearch } = useSearchStore();
+  // Subscribe to activeFilters separately so tag-chip highlighting is reactive
+  const activeFilters = useSearchStore((s) => s.activeFilters);
   const { tags, fetchTags } = useTagsStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -100,14 +102,14 @@ export default function SearchPage(): React.ReactElement {
               key={tag.id}
               type="button"
               onClick={() => {
-                const current = useSearchStore.getState().activeFilters.tagIds ?? [];
+                const current = activeFilters.tagIds ?? [];
                 const next = current.includes(tag.id)
                   ? current.filter((id) => id !== tag.id)
                   : [...current, tag.id];
                 useSearchStore.getState().setFilter(next.length > 0 ? { tagIds: next } : {});
               }}
               className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                useSearchStore.getState().activeFilters.tagIds?.includes(tag.id)
+                activeFilters.tagIds?.includes(tag.id)
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}

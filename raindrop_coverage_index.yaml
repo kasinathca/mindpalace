@@ -1,0 +1,341 @@
+schema_version: "1.0.0"
+source_file: "raindrop_help_compiled.md"
+purpose: "Traceability map from source article blocks to master spec sections"
+coverage_summary:
+  total_source_lines: 4126
+  top_level_article_blocks: 55
+  secondary_headings_count: 221
+  tertiary_headings_count: 236
+  mapped_to_master_spec: true
+
+article_blocks:
+  - id: art.001
+    title: "Search"
+    url: "https://help.raindrop.io/search"
+    start_line: 7
+    end_line: 154
+    mapped_sections: [feature_catalog.search_and_discovery, normalized_workflows]
+  - id: art.002
+    title: "About Raindrop.io"
+    url: "https://help.raindrop.io/about"
+    start_line: 155
+    end_line: 203
+    mapped_sections: [product_profile, security_privacy]
+  - id: art.003
+    title: "Account Basics"
+    url: "https://help.raindrop.io/account-basics"
+    start_line: 204
+    end_line: 281
+    mapped_sections: [feature_catalog.account_billing_security, normalized_workflows]
+  - id: art.004
+    title: "Account Settings"
+    url: "https://help.raindrop.io/account-settings"
+    start_line: 282
+    end_line: 324
+    mapped_sections: [feature_catalog.account_billing_security]
+  - id: art.005
+    title: "Suggestions"
+    url: "https://help.raindrop.io/ai-suggestions"
+    start_line: 325
+    end_line: 389
+    mapped_sections: [feature_catalog.organization, feature_catalog.ai_assistant_and_mcp]
+  - id: art.006
+    title: "API"
+    url: "https://help.raindrop.io/api"
+    start_line: 390
+    end_line: 399
+    mapped_sections: [feature_catalog.integrations]
+  - id: art.007
+    title: "Automation"
+    url: "https://help.raindrop.io/automation"
+    start_line: 400
+    end_line: 445
+    mapped_sections: [feature_catalog.integrations]
+  - id: art.008
+    title: "Backups"
+    url: "https://help.raindrop.io/backups"
+    start_line: 446
+    end_line: 516
+    mapped_sections: [feature_catalog.backup_and_recovery, normalized_workflows]
+  - id: art.009
+    title: "Beta"
+    url: "https://help.raindrop.io/betas"
+    start_line: 517
+    end_line: 535
+    mapped_sections: [feature_catalog.ai_assistant_and_mcp]
+  - id: art.010
+    title: "FAQ"
+    url: "https://help.raindrop.io/billing-faq"
+    start_line: 536
+    end_line: 589
+    mapped_sections: [pricing_gates, feature_catalog.account_billing_security]
+  - id: art.011
+    title: "Bookmarks"
+    url: "https://help.raindrop.io/bookmarks"
+    start_line: 590
+    end_line: 844
+    mapped_sections: [feature_catalog.bookmark_management, normalized_workflows]
+  - id: art.012
+    title: "Browser Extension"
+    url: "https://help.raindrop.io/browser-extension"
+    start_line: 845
+    end_line: 1023
+    mapped_sections: [feature_catalog.browser_extension_suite, platform_matrix, normalized_workflows]
+  - id: art.013
+    title: "Cancel Subscription"
+    url: "https://help.raindrop.io/cancel"
+    start_line: 1024
+    end_line: 1063
+    mapped_sections: [feature_catalog.account_billing_security, normalized_workflows]
+  - id: art.014
+    title: "Change Billing Cycle"
+    url: "https://help.raindrop.io/change-billing-cycle"
+    start_line: 1064
+    end_line: 1095
+    mapped_sections: [feature_catalog.account_billing_security]
+  - id: art.015
+    title: "Change Payment Method"
+    url: "https://help.raindrop.io/change-payment-method"
+    start_line: 1096
+    end_line: 1129
+    mapped_sections: [feature_catalog.account_billing_security, normalized_workflows]
+  - id: art.016
+    title: "Web, Desktop App & Extension"
+    url: "https://help.raindrop.io/changelog"
+    start_line: 1130
+    end_line: 1488
+    mapped_sections: [changelog_capabilities]
+  - id: art.017
+    title: "Android App"
+    url: "https://help.raindrop.io/changelog-android"
+    start_line: 1489
+    end_line: 1638
+    mapped_sections: [changelog_capabilities, platform_matrix]
+  - id: art.018
+    title: "iOS App"
+    url: "https://help.raindrop.io/changelog-ios"
+    start_line: 1639
+    end_line: 1762
+    mapped_sections: [changelog_capabilities, platform_matrix]
+  - id: art.019
+    title: "Collaboration"
+    url: "https://help.raindrop.io/collaboration"
+    start_line: 1763
+    end_line: 1799
+    mapped_sections: [feature_catalog.collaboration_and_sharing, normalized_workflows]
+  - id: art.020
+    title: "Collections"
+    url: "https://help.raindrop.io/collections"
+    start_line: 1800
+    end_line: 2007
+    mapped_sections: [feature_catalog.organization, normalized_workflows]
+  - id: art.021
+    title: "Contact Us"
+    url: "https://help.raindrop.io/contact-us"
+    start_line: 2008
+    end_line: 2016
+    mapped_sections: [open_questions_for_downstream_ai]
+  - id: art.022
+    title: "Download App"
+    url: "https://help.raindrop.io/download-app"
+    start_line: 2017
+    end_line: 2077
+    mapped_sections: [platform_matrix]
+  - id: art.023
+    title: "Embed"
+    url: "https://help.raindrop.io/embed"
+    start_line: 2078
+    end_line: 2126
+    mapped_sections: [feature_catalog.collaboration_and_sharing]
+  - id: art.024
+    title: "Export"
+    url: "https://help.raindrop.io/export"
+    start_line: 2127
+    end_line: 2166
+    mapped_sections: [feature_catalog.import_export]
+  - id: art.025
+    title: "Files"
+    url: "https://help.raindrop.io/files"
+    start_line: 2167
+    end_line: 2209
+    mapped_sections: [feature_catalog.files_and_uploads]
+  - id: art.026
+    title: "Firefox Extension"
+    url: "https://help.raindrop.io/firefox-extension-problems"
+    start_line: 2210
+    end_line: 2251
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.027
+    title: "Highlights"
+    url: "https://help.raindrop.io/highlights"
+    start_line: 2252
+    end_line: 2409
+    mapped_sections: [feature_catalog.highlights_and_annotations, normalized_workflows]
+  - id: art.028
+    title: "Import Data"
+    url: "https://help.raindrop.io/import"
+    start_line: 2410
+    end_line: 2498
+    mapped_sections: [feature_catalog.import_export, normalized_workflows]
+  - id: art.029
+    title: "Install Extension"
+    url: "https://help.raindrop.io/install-extension"
+    start_line: 2499
+    end_line: 2549
+    mapped_sections: [feature_catalog.browser_extension_suite]
+  - id: art.030
+    title: "iOS App"
+    url: "https://help.raindrop.io/ios-app-problems"
+    start_line: 2550
+    end_line: 2569
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.031
+    title: "Limitations"
+    url: "https://help.raindrop.io/limitations"
+    start_line: 2570
+    end_line: 2592
+    mapped_sections: [limitations_and_constraints]
+  - id: art.032
+    title: "Login Problems"
+    url: "https://help.raindrop.io/login-problems"
+    start_line: 2593
+    end_line: 2692
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.033
+    title: "macOS App"
+    url: "https://help.raindrop.io/mac-os-problems"
+    start_line: 2693
+    end_line: 2709
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.034
+    title: "MCP"
+    url: "https://help.raindrop.io/mcp"
+    start_line: 2710
+    end_line: 2893
+    mapped_sections: [feature_catalog.ai_assistant_and_mcp, normalized_workflows]
+  - id: art.035
+    title: "Mobile App"
+    url: "https://help.raindrop.io/mobile-app"
+    start_line: 2894
+    end_line: 2964
+    mapped_sections: [platform_matrix, feature_catalog.bookmark_management]
+  - id: art.036
+    title: "Permanent copy"
+    url: "https://help.raindrop.io/permanent-copy"
+    start_line: 2965
+    end_line: 3027
+    mapped_sections: [feature_catalog.search_and_discovery, limitations_and_constraints]
+  - id: art.037
+    title: "Premium Features"
+    url: "https://help.raindrop.io/premium-features"
+    start_line: 3028
+    end_line: 3052
+    mapped_sections: [pricing_gates]
+  - id: art.038
+    title: "Privacy Policy"
+    url: "https://help.raindrop.io/privacy"
+    start_line: 3053
+    end_line: 3206
+    mapped_sections: [security_privacy]
+  - id: art.039
+    title: "Public Page"
+    url: "https://help.raindrop.io/public-page"
+    start_line: 3207
+    end_line: 3257
+    mapped_sections: [feature_catalog.collaboration_and_sharing, normalized_workflows]
+  - id: art.040
+    title: "Refund"
+    url: "https://help.raindrop.io/refund"
+    start_line: 3258
+    end_line: 3284
+    mapped_sections: [feature_catalog.account_billing_security, pricing_gates]
+  - id: art.041
+    title: "Reminders"
+    url: "https://help.raindrop.io/reminders"
+    start_line: 3285
+    end_line: 3339
+    mapped_sections: [feature_catalog.reminders, normalized_workflows]
+  - id: art.042
+    title: "Safari Extension (macOS)"
+    url: "https://help.raindrop.io/safari-mac-problems"
+    start_line: 3340
+    end_line: 3385
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.043
+    title: "AI Assistant (Beta)"
+    url: "https://help.raindrop.io/stella"
+    start_line: 3386
+    end_line: 3509
+    mapped_sections: [feature_catalog.ai_assistant_and_mcp, normalized_workflows]
+  - id: art.044
+    title: "Tags"
+    url: "https://help.raindrop.io/tags"
+    start_line: 3510
+    end_line: 3557
+    mapped_sections: [feature_catalog.organization, normalized_workflows]
+  - id: art.045
+    title: "Terms of Service"
+    url: "https://help.raindrop.io/terms"
+    start_line: 3558
+    end_line: 3633
+    mapped_sections: [limitations_and_constraints]
+  - id: art.046
+    title: "Two-Factor Authentication"
+    url: "https://help.raindrop.io/tfa"
+    start_line: 3634
+    end_line: 3702
+    mapped_sections: [feature_catalog.account_billing_security, normalized_workflows]
+  - id: art.047
+    title: "Third-Party Apps"
+    url: "https://help.raindrop.io/third-party-apps"
+    start_line: 3703
+    end_line: 3774
+    mapped_sections: [feature_catalog.integrations]
+  - id: art.048
+    title: "Sync Issue"
+    url: "https://help.raindrop.io/troubleshooting/doesnt-sync"
+    start_line: 3775
+    end_line: 3806
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.049
+    title: "Broken Links Troubleshooting"
+    url: "https://help.raindrop.io/troubleshooting/false-broken-links"
+    start_line: 3807
+    end_line: 3854
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.050
+    title: "Forgot Password"
+    url: "https://help.raindrop.io/troubleshooting/forgot-password"
+    start_line: 3855
+    end_line: 3868
+    mapped_sections: [troubleshooting_playbooks, normalized_workflows]
+  - id: art.051
+    title: "Lost All Bookmarks"
+    url: "https://help.raindrop.io/troubleshooting/lost-data"
+    start_line: 3869
+    end_line: 3879
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.052
+    title: "Can't Open Multiple Links at Once"
+    url: "https://help.raindrop.io/troubleshooting/open-multiple-links"
+    start_line: 3880
+    end_line: 3934
+    mapped_sections: [troubleshooting_playbooks]
+  - id: art.053
+    title: "User Interface"
+    url: "https://help.raindrop.io/ui"
+    start_line: 3935
+    end_line: 3954
+    mapped_sections: [feature_catalog.organization, platform_matrix]
+  - id: art.054
+    title: "Search"
+    url: "https://help.raindrop.io/using-search"
+    start_line: 3955
+    end_line: 4102
+    mapped_sections: [feature_catalog.search_and_discovery, normalized_workflows]
+  - id: art.055
+    title: "Welcome"
+    url: "https://help.raindrop.io/"
+    start_line: 4103
+    end_line: 4126
+    mapped_sections: [product_profile]

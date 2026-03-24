@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import {
   apiListBookmarks,
+  apiGetBookmark,
   apiCreateBookmark,
   apiUpdateBookmark,
   apiDeleteBookmark,
@@ -122,6 +123,46 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
         bookmarks: state.bookmarks.map((b) => (b.id === placeholder.id ? created : b)),
         pagination: { ...state.pagination, total: state.pagination.total + 1 },
       }));
+
+      // Metadata extraction runs asynchronously in workers; use bounded retry
+      // with backoff so we eventually stop polling and avoid hidden loops.
+      const MAX_METADATA_REFRESH_ATTEMPTS = 4;
+      const INITIAL_METADATA_DELAY_MS = 2_000;
+
+      const scheduleMetadataRefresh = (attempt: number, delayMs: number): void => {
+        if (attempt >= MAX_METADATA_REFRESH_ATTEMPTS) return;
+
+        setTimeout(() => {
+          void apiGetBookmark(created.id)
+            .then((refreshed) => {
+              set((state) => ({
+                bookmarks: state.bookmarks.map((b) => (b.id === refreshed.id ? refreshed : b)),
+              }));
+
+              // Continue polling while record looks unchanged from create time.
+              const shouldRetry = refreshed.updatedAt === created.updatedAt;
+              if (shouldRetry) {
+                scheduleMetadataRefresh(attempt + 1, delayMs * 2);
+              }
+            })
+            .catch((err: unknown) => {
+              if (attempt + 1 >= MAX_METADATA_REFRESH_ATTEMPTS) {
+                set({
+                  error:
+                    err instanceof Error
+                      ? `Metadata refresh failed: ${err.message}`
+                      : 'Metadata refresh failed.',
+                });
+                return;
+              }
+
+              scheduleMetadataRefresh(attempt + 1, delayMs * 2);
+            });
+        }, delayMs);
+      };
+
+      scheduleMetadataRefresh(0, INITIAL_METADATA_DELAY_MS);
+
       return created;
     } catch (err: unknown) {
       // Roll back optimistic update

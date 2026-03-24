@@ -232,6 +232,8 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Sa
       ...(input.displayName ? { displayName: input.displayName } : {}),
       ...(input.email ? { email: input.email } : {}),
       ...(passwordHash ? { passwordHash } : {}),
+      ...(input.theme ? { theme: input.theme } : {}),
+      ...(input.defaultView ? { defaultView: input.defaultView } : {}),
     },
   });
 

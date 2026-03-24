@@ -232,6 +232,9 @@ export interface BookmarkFilters {
   collectionId?: string;
   tagIds?: string[];
   linkStatus?: LinkStatus;
+  isPinned?: boolean;
+  isFavourite?: boolean;
+  isUnread?: boolean;
   dateFrom?: string;
   dateTo?: string;
   sortBy?: 'createdAt' | 'title';
@@ -282,6 +285,8 @@ export interface UpdateMeInput {
   email?: string;
   currentPassword?: string;
   newPassword?: string;
+  theme?: Theme;
+  defaultView?: ViewMode;
 }
 
 export interface AuthResponse {

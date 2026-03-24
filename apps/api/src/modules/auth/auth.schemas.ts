@@ -52,6 +52,8 @@ export const UpdateMeSchema = z
     email: z.string().email().toLowerCase().trim().optional(),
     currentPassword: z.string().optional(),
     newPassword: z.string().min(8).max(128).regex(/[A-Z]/).regex(/[0-9]/).optional(),
+    theme: z.enum(['SYSTEM', 'LIGHT', 'DARK']).optional(),
+    defaultView: z.enum(['GRID', 'LIST', 'COMPACT']).optional(),
   })
   .refine(
     (data) => {

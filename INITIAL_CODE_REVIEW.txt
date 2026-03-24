@@ -1,0 +1,379 @@
+MIND PALACE — INITIAL CODE REVIEW
+==================================
+
+Project:      Mind Palace (Web-based Bookmark Management System)
+Stack:        Node.js + Express + TypeScript (API)  |  React + Vite + TypeScript (Web)
+              PostgreSQL + Redis  |  Prisma ORM  |  BullMQ
+Review Date:  March 11, 2026
+Repo:         pnpm monorepo — apps/api, apps/web, packages/shared
+
+
+────────────────────────────────────────────────────────────────
+1. SCOPE OF REVIEW
+────────────────────────────────────────────────────────────────
+
+This review covers the files most critical to correctness, security,
+and architecture. UI-only components, thin controller files, and typed
+API wrappers were intentionally excluded.
+
+
+────────────────────────────────────────────────────────────────
+2. FILES REVIEWED
+────────────────────────────────────────────────────────────────
+
+2.1 BACKEND — apps/api
+──────────────────────
+
+Infrastructure / Startup
+
+  File                        Purpose
+  --------------------------  -------------------------------------------------------
+  src/index.ts                Server entry point — loads .env, calls createApp(),
+                              starts listener
+  src/app.ts                  Express factory — security headers, CORS, body parsers,
+                              rate limiter, route mounts
+  src/config/env.ts           Zod-validated environment variables — server refuses to
+                              start on missing/invalid config
+  src/config/constants.ts     Application-wide constants (pagination limits, cookie
+                              names, HTTP codes)
+  prisma/schema.prisma        Full database schema — models, relations, indexes, enums
+
+
+Middleware
+
+  File                                    Purpose
+  --------------------------------------  -----------------------------------------------
+  src/middleware/auth.middleware.ts       JWT Bearer token verification — attaches req.user
+  src/middleware/errorHandler.           Global error handler — AppError class, Zod error
+    middleware.ts                         shaping, unexpected error catch
+  src/middleware/rateLimiter.            Three limiters: global (100/15min),
+    middleware.ts                         auth (20/15min), bookmark-create (30/window)
+  src/middleware/validate.middleware.ts  Zod schema validation factory for body,
+                                          params, query
+  src/middleware/requestLogger.          pino-http logger — redacts Authorization
+    middleware.ts                         and password fields
+
+
+Auth Module
+
+  File                              Purpose
+  --------------------------------  -------------------------------------------------------
+  src/modules/auth/auth.router.ts   Route definitions — rate limiter + validate +
+                                    controller chain
+  src/modules/auth/auth.schemas.ts  Zod schemas for register, login, forgot/reset
+                                    password, profile update
+  src/modules/auth/auth.service.ts  Business logic — bcrypt hashing, JWT signing,
+                                    password reset with hashed token, profile update
+
+
+Bookmarks Module  (pattern representative for all modules)
+
+  File                                       Purpose
+  -----------------------------------------  -------------------------------------------
+  src/modules/bookmarks/bookmarks.router.ts  Routes — import/export, batch ops, CRUD;
+                                             nested annotations sub-router
+  src/modules/bookmarks/                     URL validation, list query, batch schemas
+    bookmarks.schemas.ts
+  src/modules/bookmarks/                     Core logic — cursor pagination, tag upsert,
+    bookmarks.service.ts                     queue job enqueuing, serialisation
+
+
+Search Module
+
+  File                                   Purpose
+  -------------------------------------  ------------------------------------------------
+  src/modules/search/search.router.ts    Routes — FTS, duplicates, similar URL detection
+  src/modules/search/search.schemas.ts   Zod query params schema
+  src/modules/search/search.service.ts   PostgreSQL tsvector FTS — raw SQL for ranking,
+                                         Prisma for typed hydration
+
+
+Libraries
+
+  File                   Purpose
+  ---------------------  ----------------------------------------------------------------
+  src/lib/archiver.ts    Fetch -> Readability -> DOMPurify pipeline;
+                         SSRF guard blocks private/loopback/metadata IPs
+  src/lib/cache.ts       Redis cache helpers (cacheGet, cacheSet, cacheDel) —
+                         best-effort, silent failures
+  src/lib/prisma.ts      Prisma singleton with dev hot-reload guard
+  src/lib/redis.ts       IORedis singleton configured for BullMQ
+  src/lib/email.ts       Nodemailer transporter + password reset email template
+  src/lib/importer.ts    Netscape Bookmark HTML parser (Cheerio) —
+                         produces flat ParsedBookmark[]
+
+
+Background Workers
+
+  File                       Purpose
+  -------------------------  -------------------------------------------------------
+  src/workers/queues.ts      BullMQ queue definitions — metadata, archive, link-health
+  src/workers/worker.ts      Worker process entry point — registers all three workers,
+                             graceful shutdown
+
+
+Type Augmentations
+
+  File                       Purpose
+  -------------------------  -------------------------------------------------------
+  src/types/express.d.ts     Extends Express.Request with user?: { id, email }
+
+
+──────────────────────────────────────────────────────────────────
+2.2 FRONTEND — apps/web
+────────────────────────
+
+  File                         Purpose
+  ---------------------------  -------------------------------------------------------
+  src/main.tsx                 React root — wires Zustand auth store into Axios
+                               interceptor before first render
+  src/App.tsx                  BrowserRouter + route tree — public-only, protected,
+                               and 404 routes
+  src/api/client.ts            Axios instance — attaches Bearer token on request;
+                               transparent 401 -> refresh -> retry
+  src/stores/authStore.ts      Zustand auth store — user, tokens, login/register/logout
+                               actions, sessionStorage persist
+  src/stores/                  Bookmark list, cursor pagination, optimistic updates
+    bookmarksStore.ts
+
+
+──────────────────────────────────────────────────────────────────
+2.3 SHARED — packages/shared
+──────────────────────────────
+
+  File             Purpose
+  ---------------  -------------------------------------------------------
+  src/index.ts     Shared TypeScript types imported by both api and web
+
+
+────────────────────────────────────────────────────────────────
+3. ARCHITECTURE OVERVIEW
+────────────────────────────────────────────────────────────────
+
+  React SPA  <--REST/JSON-->  Express API (apps/api)
+  (apps/web)                  |
+  Zustand                     Middleware chain:
+  stores                        helmet -> cors -> requestLogger ->
+                                json parser -> defaultLimiter ->
+                                routes -> errorHandler
+                              |
+                              Modules: auth, bookmarks, collections,
+                                       tags, search, annotations
+                              |
+              ----------------+------------------
+              |               |                 |
+         PostgreSQL         Redis           BullMQ Workers
+          (Prisma)        (IORedis)          - metadata
+                                             - archive
+                                             - linkhealth
+
+
+────────────────────────────────────────────────────────────────
+4. SECURITY OBSERVATIONS
+────────────────────────────────────────────────────────────────
+
+4.1 Implemented Security Controls
+───────────────────────────────────
+
+  Helmet
+    Strict Content Security Policy, HSTS (1 year + subdomains),
+    XSS and clickjacking protection headers.
+
+  CORS
+    Origin-locked to CORS_ORIGIN environment variable with
+    credential support. No wildcard origins.
+
+  Rate Limiting
+    Three-tier strategy:
+      - Global:           100 requests per 15 minutes
+      - Auth endpoints:    20 requests per 15 minutes
+      - Bookmark create:   30 per window per user
+
+  JWT Authentication
+    Short-lived access tokens (15 min) + HttpOnly cookie refresh
+    tokens (7 days). JWT secrets validated at startup to be at
+    least 32 characters.
+
+  Password Hashing
+    bcrypt with configurable rounds (default 12, max 31 enforced
+    by Zod env schema).
+
+  Input Validation
+    All routes gated by Zod schemas via validate() middleware.
+    No raw req.body access in services.
+
+  SSRF Guard (archiver.ts)
+    Blocks outbound requests to:
+      127.x, 10.x, 172.16-31.x, 192.168.x, 169.254.x,
+      AWS/GCP/Azure metadata service hostnames.
+
+  HTML Sanitisation
+    DOMPurify applied to all Readability-extracted article content
+    before storing in the database.
+
+  Password Reset Tokens
+    Stored as SHA-256 hash — never plain text. One-time use
+    enforced via usedAt timestamp.
+
+  Request Logging
+    Authorization header and password body field are redacted
+    (shown as [REDACTED]) in all log output via pino-http.
+
+
+4.2 Items to Verify / Discuss
+───────────────────────────────
+
+  Refresh Token Revocation
+    Current implementation is stateless (signed JWT, not stored
+    server-side). Logout-all-devices / forced revocation is noted
+    in auth.controller.ts as deferred to Phase 3.
+    Action: confirm this is acceptable for Phase 1 go-live.
+
+  emailVerified Flag
+    The User model has an emailVerified field but the login flow
+    does not currently enforce it (any user can log in regardless).
+    Action: confirm if email verification enforcement is in scope
+    for Phase 1 or explicitly deferred.
+
+  File Upload Memory Usage
+    Multer uses memoryStorage for bookmark HTML imports (max 10 MB).
+    Under concurrent imports this memory is not released until GC.
+    Action: confirm expected concurrent usage and whether disk
+    storage is preferred.
+
+  Screenshot Storage Path
+    screenshotPath is stored as a relative path in the database.
+    Action: verify the read endpoint applies path validation to
+    prevent directory traversal.
+
+
+────────────────────────────────────────────────────────────────
+5. DATA MODEL SUMMARY
+────────────────────────────────────────────────────────────────
+
+  Model                Key Points
+  -------------------  --------------------------------------------------------
+  User                 CUID primary key, unique email, passwordHash (never plain
+                       text), theme and view preferences stored inline.
+
+  PasswordResetToken   tokenHash (SHA-256), expiresAt, usedAt for one-time use.
+                       Cascades deleted when User is deleted.
+
+  Collection           Self-referential tree. parentId -> id with CASCADE delete.
+                       sortOrder field for manual ordering.
+
+  Bookmark             searchVector (tsvector) maintained by PostgreSQL trigger
+                       with GIN index. Cursor pagination on
+                       (userId, createdAt DESC).
+
+  Tag                  Unique per user, names normalised to lowercase in service
+                       layer. M:N to Bookmark via BookmarkTag junction table.
+
+  PermanentCopy        One-to-one with Bookmark. Stores rawHtml, articleContent
+                       (Readability output), and failureReason if capture failed.
+
+  Annotation           Belongs to PermanentCopy. positionData stored as JSON
+                       (start/end offsets + XPath or CSS selector).
+
+
+────────────────────────────────────────────────────────────────
+6. BACKGROUND JOB ARCHITECTURE
+────────────────────────────────────────────────────────────────
+
+All three workers run in a separate Node.js process (worker.ts)
+so slow network jobs never block HTTP responses.
+
+  Queue         Trigger                       Action
+  ------------  ----------------------------  --------------------------------
+  metadata      On bookmark create            Fetch URL -> extract title,
+                                              description, OG image, favicon.
+                                              Update bookmark record.
+
+  archive       On bookmark create            Fetch URL -> Readability +
+                                              DOMPurify -> store
+                                              PermanentCopy record.
+
+  link-health   Nightly repeatable schedule   HEAD (fallback GET) URL ->
+                + on-demand check             classify as OK, BROKEN, or
+                                              REDIRECTED. Update linkStatus.
+
+
+────────────────────────────────────────────────────────────────
+7. FRONTEND TOKEN STRATEGY
+────────────────────────────────────────────────────────────────
+
+  Login response  ->  { accessToken, refreshToken, user }
+                             |               |
+                      Zustand authStore   HttpOnly cookie
+                      (sessionStorage)   (path=/api/v1/auth)
+
+  On every request:
+    Axios request interceptor reads accessToken from authStore
+    and attaches it as  Authorization: Bearer <token>
+
+  On 401 response:
+    Single token refresh attempt using refreshToken.
+    If refresh succeeds  -> update tokens, retry original request.
+    If refresh fails     -> call _forceLogout(), redirect to /login.
+
+
+────────────────────────────────────────────────────────────────
+8. KEY PATTERNS
+────────────────────────────────────────────────────────────────
+
+  Thin Controllers
+    Controllers contain no business logic. They extract inputs,
+    call one service method, and format the HTTP response.
+    All logic lives in the corresponding *.service.ts file.
+
+  validate() Middleware
+    Wraps Zod .parse() for body/params/query. On failure it passes
+    the ZodError to the global errorHandler which formats it into
+    a consistent { success: false, error, issues[] } response.
+
+  AppError
+    A typed Error subclass carrying a statusCode. Thrown in
+    service layer, caught by errorHandler, returned as a typed
+    HTTP error response. Prevents leaking stack traces.
+
+  Cache Pattern
+    Redis cacheGet/cacheSet/cacheDel used in collections and tags
+    services (5-minute TTL). All cache failures are silently
+    swallowed — the cache is best-effort and never blocks the
+    primary database path.
+
+  req.user! Non-null Assertion
+    Safe throughout the codebase because jwtAuthGuard always runs
+    before any protected route handler. TypeScript is aware via
+    the express.d.ts module augmentation.
+
+  Cursor Pagination
+    Bookmarks are paginated using a (createdAt + id) cursor rather
+    than SQL OFFSET. This is consistent under concurrent writes
+    and does not degrade at large page numbers.
+
+  Full-Text Search (FTS) Strategy
+    The searchVector tsvector column is written exclusively by a
+    PostgreSQL trigger (not by Prisma). The search service runs a
+    raw SQL query to get ranked bookmark IDs, then passes those IDs
+    to a standard Prisma findMany to load typed records with
+    relations. Raw SQL handles ranking; Prisma handles type safety.
+
+
+────────────────────────────────────────────────────────────────
+9. TEST COVERAGE
+────────────────────────────────────────────────────────────────
+
+  Area                Notes
+  ------------------  -------------------------------------------------------
+  lib/importer.ts     Unit tested — apps/api/src/lib/importer.test.ts
+  Integration tests   apps/api/tests/integration/
+  E2E tests           apps/web/e2e/ (Playwright)
+                        - auth.spec.ts
+                        - bookmarks.spec.ts
+                        - navigation.spec.ts
+
+
+════════════════════════════════════════════════════════════════
+END OF INITIAL REVIEW DOCUMENT
+════════════════════════════════════════════════════════════════

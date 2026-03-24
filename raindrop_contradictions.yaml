@@ -1,0 +1,199 @@
+schema_version: "1.0.0"
+source_file: "raindrop_help_compiled.md"
+purpose: "Track conflicting, ambiguous, or incomplete claims for downstream AI"
+
+unresolved_items:
+  - id: amb.001
+    area: "Highlights quotas"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Highlights are described as effectively unlimited in feature messaging."
+      - "Elsewhere, per-bookmark limit references appear (100 highlights per bookmark in documentation context)."
+    risk_if_wrong: "Incorrect storage and UI limits in cloned product"
+    recommended_interpretation: "Enforce explicit per-item hard limits and expose them in UI"
+
+  - id: amb.002
+    area: "AI feature boundaries"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Older AI Suggestions pages describe dedicated suggestion feature."
+      - "Changelog says suggestions page removed and AI consolidated into assistant."
+    risk_if_wrong: "Duplicate overlapping UX and confused product scope"
+    recommended_interpretation: "Model as unified AI service with separate capabilities"
+
+  - id: amb.003
+    area: "Reminder tier gating"
+    contradiction_status: possible
+    confidence: strongly_implied
+    claims:
+      - "Reminders are presented as standard capability in some sections."
+      - "Premium feature summaries imply enhanced reminder behavior may be gated."
+    risk_if_wrong: "Monetization mismatch"
+    recommended_interpretation: "Define baseline reminders free; advanced scheduling or channels as Pro"
+
+  - id: amb.004
+    area: "Social login providers"
+    contradiction_status: confirmed
+    confidence: explicit
+    claims:
+      - "Account docs mention Apple, Google, Facebook, Twitter linkage."
+      - "Changelog entry states Facebook/Twitter/VK login options removed."
+    risk_if_wrong: "Broken auth assumptions"
+    recommended_interpretation: "Treat provider set as time-dependent and verify current providers live"
+
+  - id: amb.005
+    area: "MCP availability"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "MCP described as beta for Pro users."
+      - "Configuration guidance appears generally applicable to MCP-capable clients."
+    risk_if_wrong: "Onboarding flow failure for non-Pro users"
+    recommended_interpretation: "Gate server access by account plan, not by client setup path"
+
+  - id: amb.006
+    area: "Broken links checker strictness"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Broken links checker appears automatic and straightforward."
+      - "Troubleshooting suggests checker modes and false positives under anti-bot/captcha conditions."
+    risk_if_wrong: "User trust issues and accidental deletions"
+    recommended_interpretation: "Default to conservative mode and require confirmation before destructive actions"
+
+  - id: amb.007
+    area: "Public page domain migration"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "Public pages moved to raindrop.page with redirects from old links."
+    risk_if_wrong: "SEO and link integrity issues"
+    recommended_interpretation: "Implement permanent redirects and canonical URL management"
+
+  - id: amb.008
+    area: "Language support on iOS"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Account settings article says iOS app available only in English in that context."
+      - "Changelog references multiple translation fixes across mobile releases."
+    risk_if_wrong: "Incorrect localization assumptions"
+    recommended_interpretation: "Treat iOS localization as evolving; keep locale matrix versioned"
+
+  - id: amb.009
+    area: "Full-text indexing eligibility"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Search docs state content search across bookmarks, PDFs, EPUBs."
+      - "Limitations state bookmark should have permanent copy to support full-text search."
+    risk_if_wrong: "Unexpected missing search results"
+    recommended_interpretation: "Index only persisted snapshots and expose indexing state"
+
+  - id: amb.010
+    area: "Permanent copy guarantees"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Marketing language implies durable archive."
+      - "Changelog and troubleshooting imply failures/retries and source-specific limitations."
+    risk_if_wrong: "Reliability overpromise"
+    recommended_interpretation: "Declare best-effort with status and retry visibility"
+
+  - id: amb.011
+    area: "Collaboration permission granularity"
+    contradiction_status: possible
+    confidence: strongly_implied
+    claims:
+      - "Collaboration docs indicate invitation and shared access."
+      - "Exact role matrix (owner/editor/viewer restrictions) not fully formalized in compiled text."
+    risk_if_wrong: "Security and accidental edits"
+    recommended_interpretation: "Define explicit RBAC model before implementation"
+
+  - id: amb.012
+    area: "Backup recovery precision"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "General claims mention point-in-time restoration capability."
+      - "User-level backup restore flow is file import based and not explicitly point-in-time selectable."
+    risk_if_wrong: "Recovery expectation mismatch"
+    recommended_interpretation: "Separate infra DR claims from end-user restore UX"
+
+  - id: amb.013
+    area: "Browser feature parity"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "Omnibox search unsupported in Safari/Vivaldi while available in Chromium browsers."
+      - "Sidebar support varies by browser."
+    risk_if_wrong: "Extension UX inconsistency bugs"
+    recommended_interpretation: "Maintain explicit per-browser capability matrix"
+
+  - id: amb.014
+    area: "Data export completeness"
+    contradiction_status: possible
+    confidence: explicit
+    claims:
+      - "Backups include collections, links, tags, highlights."
+      - "Uploaded files and collection icons are not included."
+    risk_if_wrong: "Incomplete migration expectations"
+    recommended_interpretation: "Expose export manifest preview before download"
+
+  - id: amb.015
+    area: "Duplicate detection semantics"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "Duplicate is based on normalized URL equivalence; originals excluded from duplicate view."
+    risk_if_wrong: "Accidental original deletion if misimplemented"
+    recommended_interpretation: "Preserve deterministic canonicalization and UI safety notice"
+
+  - id: amb.016
+    area: "Search operator stability across versions"
+    contradiction_status: possible
+    confidence: strongly_implied
+    claims:
+      - "Operators are documented in search sections."
+      - "Changelog shows multiple search engine changes over time."
+    risk_if_wrong: "Parser incompatibility and user confusion"
+    recommended_interpretation: "Version operator parser and include compatibility tests"
+
+  - id: amb.017
+    area: "Upload size limits after downgrade"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "FAQ notes downgraded plan limits new file uploads to 100 MB/month."
+    risk_if_wrong: "Billing entitlement errors"
+    recommended_interpretation: "Implement quota policy with effective-date billing transitions"
+
+  - id: amb.018
+    area: "AI privacy statements"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "Docs claim private models, own servers, and no user data used for training."
+    risk_if_wrong: "Compliance and trust risk"
+    recommended_interpretation: "Treat as strict contractual/privacy requirement in architecture"
+
+  - id: amb.019
+    area: "Account deletion reversibility"
+    contradiction_status: none
+    confidence: explicit
+    claims:
+      - "Account removal says irreversible."
+      - "Bookmark deletion via trash can be restorable separately in other flows."
+    risk_if_wrong: "Data lifecycle misunderstanding"
+    recommended_interpretation: "Differentiate soft-delete of content vs hard-delete of account"
+
+  - id: amb.020
+    area: "Changelog vs help recency drift"
+    contradiction_status: confirmed
+    confidence: explicit
+    claims:
+      - "Some operational docs lag latest changelog behavior."
+    risk_if_wrong: "Building deprecated UX pathways"
+    recommended_interpretation: "Use latest changelog as tie-breaker when direct conflict exists"

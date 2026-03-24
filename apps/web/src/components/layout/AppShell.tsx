@@ -18,6 +18,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useCollectionsStore } from '../../stores/collectionsStore.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { ErrorBoundary } from '../common/ErrorBoundary.js';
 import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
@@ -25,6 +26,10 @@ import { Toaster } from '../ui/toast.js';
 import { cn } from '../../utils/cn.js';
 
 export function AppShell(): React.JSX.Element {
+  // Apply stored theme preference (from authStore / backend) to <html>
+  // This hook adds/removes the 'dark' class on document.documentElement.
+  useTheme();
+
   // On mobile the sidebar starts closed so it doesn't obscure content.
   // On desktop (lg+) it starts open via CSS (lg:translate-x-0 / lg:w-60).
   const [sidebarOpen, setSidebarOpen] = useState(false);

@@ -1,0 +1,924 @@
+schema_version: "1.0.0"
+generated_at_utc: "2026-03-24"
+source:
+	file: "raindrop_help_compiled.md"
+	total_lines: 4126
+	coverage_policy: "include_all_claims_and_mark_confidence"
+	confidence_levels:
+		- explicit
+		- strongly_implied
+		- inferred
+
+product_profile:
+	name: "Raindrop-like Bookmark Knowledge Platform"
+	core_value: "Save, organize, resurface, and share web knowledge across devices"
+	personas:
+		- individual_researcher
+		- developer
+		- content_curator
+		- marketer
+		- student
+		- collaborative_team
+	deployment_targets:
+		- web_app
+		- browser_extension
+		- desktop_app
+		- ios_app
+		- android_app
+
+domain_entities:
+	- id: entity.bookmark
+		fields:
+			- id
+			- url
+			- title
+			- excerpt
+			- note
+			- tags
+			- collection_id
+			- type
+			- favorite
+			- reminder
+			- file_ref
+			- cache_status
+			- created_at
+			- updated_at
+	- id: entity.collection
+		fields:
+			- id
+			- title
+			- parent_id
+			- icon
+			- collaborators
+			- visibility
+			- sort_mode
+			- view_mode
+	- id: entity.tag
+		fields:
+			- id
+			- title
+			- usage_count
+			- casing_preference
+	- id: entity.highlight
+		fields:
+			- id
+			- bookmark_id
+			- selected_text
+			- start_anchor
+			- end_anchor
+			- note
+			- color
+			- created_at
+	- id: entity.permanent_copy
+		fields:
+			- id
+			- bookmark_id
+			- status
+			- source
+			- indexed_at
+	- id: entity.backup
+		fields:
+			- id
+			- format
+			- created_at
+			- destination
+			- scope
+	- id: entity.user_account
+		fields:
+			- id
+			- email
+			- username
+			- auth_providers
+			- two_factor_enabled
+			- subscription_tier
+
+platforms:
+	- id: web
+	- id: desktop
+	- id: extension.chrome
+	- id: extension.edge
+	- id: extension.firefox
+	- id: extension.safari
+	- id: ios
+	- id: android
+
+tiers:
+	- id: free
+		includes:
+			- unlimited_bookmarks
+			- unlimited_collections
+			- collaboration_basic
+	- id: pro
+		includes:
+			- full_text_search
+			- permanent_copy
+			- duplicate_detection
+			- broken_link_finder
+			- cloud_backups
+			- larger_upload_limits
+			- ai_features
+	- id: beta_pro
+		includes:
+			- ai_assistant_stella
+			- mcp_beta_access
+
+feature_catalog:
+	search_and_discovery:
+		- id: feat.search.basic
+			title: "Global search over metadata and content"
+			availability: all_users
+			platforms: [web, desktop, ios, android, extension.chrome, extension.edge, extension.firefox, extension.safari]
+			confidence: explicit
+			capabilities:
+				- search_in_title
+				- search_in_description
+				- search_in_notes
+				- search_in_url
+				- search_in_tags
+				- search_by_type
+				- search_by_date
+		- id: feat.search.full_text
+			title: "Full-text search over saved page/pdf/epub content"
+			availability: pro_only
+			confidence: explicit
+			constraints:
+				- indexing_delay_minutes
+				- requires_permanent_copy
+				- max_300000_characters_per_document
+		- id: feat.search.operators
+			title: "Advanced operator language"
+			availability: all_users
+			confidence: explicit
+			operators:
+				- phrase
+				- negation
+				- tag_single
+				- tag_multiword
+				- match_or
+				- created_date_filters
+				- last_update_filter
+				- title_filter
+				- excerpt_filter
+				- note_filter
+				- link_filter
+				- type_filter
+				- favorite_filter
+				- file_filter
+				- notag_filter
+				- cache_status_filter
+				- reminder_filter
+		- id: feat.search.recent
+			title: "Cross-device recent searches"
+			availability: all_users
+			confidence: explicit
+			limits:
+				- remembers_last_10
+		- id: feat.search.semantic
+			title: "Natural language and multilingual search"
+			availability: pro_only
+			confidence: explicit
+			notes:
+				- query_by_meaning_not_exact_keywords
+
+	bookmark_management:
+		- id: feat.bookmark.create
+			title: "Save link via app, extension, share flow, or context menu"
+			availability: all_users
+			confidence: explicit
+		- id: feat.bookmark.edit
+			title: "Edit title, note, tags, collection, thumbnail"
+			availability: all_users
+			confidence: explicit
+		- id: feat.bookmark.bulk
+			title: "Bulk select and apply actions"
+			availability: all_users
+			confidence: explicit
+			actions:
+				- move
+				- delete
+				- add_tags
+				- delete_tags
+				- open_many
+		- id: feat.bookmark.preview
+			title: "In-app preview and reader modes"
+			availability: all_users
+			confidence: explicit
+			supports:
+				- article_view
+				- video_view
+				- image_view
+				- refresh_preview
+		- id: feat.bookmark.duplicates
+			title: "Duplicate detector with URL normalization"
+			availability: pro_only
+			confidence: explicit
+			normalization_rules:
+				- ignore_protocol
+				- ignore_www
+				- ignore_trailing_slash
+				- ignore_tracking_query_params
+				- ignore_hash
+		- id: feat.bookmark.broken_links
+			title: "Broken link scanner and cleanup"
+			availability: pro_only
+			confidence: explicit
+			indicators:
+				- ghost_icon_on_domain
+
+	organization:
+		- id: feat.collections.nested
+			title: "Nested collections and drag/drop organization"
+			availability: all_users
+			confidence: explicit
+		- id: feat.tags.system
+			title: "Tagging and bulk tagging"
+			availability: all_users
+			confidence: explicit
+		- id: feat.sorting_and_views
+			title: "List/grid/headlines/masonry with sort options"
+			availability: all_users
+			confidence: explicit
+		- id: feat.ai_suggestions
+			title: "AI suggestions for collection and tags"
+			availability: pro_only
+			confidence: explicit
+			lifecycle:
+				- suggested_collections
+				- suggested_existing_tags
+				- suggested_new_tags
+				- learns_from_user_corrections
+
+	highlights_and_annotations:
+		- id: feat.highlights.web
+			title: "Highlight text from web pages"
+			availability: all_users
+			confidence: explicit
+		- id: feat.highlights.pdf
+			title: "PDF highlighting support"
+			availability: all_users
+			confidence: explicit
+		- id: feat.highlights.notes
+			title: "Annotation notes on highlights"
+			availability: pro_only
+			confidence: strongly_implied
+
+	reminders:
+		- id: feat.reminders.bookmark
+			title: "Attach reminders to bookmarks"
+			availability: mixed_scope
+			confidence: explicit
+			notes:
+				- reminder:true operator available
+				- plan gating requires verification
+
+	files_and_uploads:
+		- id: feat.files.upload
+			title: "Upload and save files as items"
+			availability: all_users_with_limits
+			confidence: explicit
+		- id: feat.files.search
+			title: "Search uploaded files"
+			availability: all_users
+			confidence: explicit
+		- id: feat.files.pro_limits
+			title: "Higher monthly upload quota in Pro"
+			availability: pro_only
+			confidence: explicit
+
+	backup_and_recovery:
+		- id: feat.backup.manual
+			title: "On-demand account backup generation"
+			availability: all_users
+			confidence: explicit
+		- id: feat.backup.auto
+			title: "Automatic daily backups"
+			availability: pro_only
+			confidence: explicit
+			destinations:
+				- dropbox
+				- google_drive
+				- onedrive
+		- id: feat.backup.restore
+			title: "Restore by importing backup file"
+			availability: all_users
+			confidence: explicit
+		- id: feat.backup.retention
+			title: "Keep 30 recent backups"
+			availability: all_users
+			confidence: explicit
+
+	import_export:
+		- id: feat.import.multi_source
+			title: "Import from browsers/apps/file formats"
+			availability: all_users
+			confidence: explicit
+		- id: feat.export.collection_or_all
+			title: "Export selected collections or full account"
+			availability: all_users
+			confidence: explicit
+		- id: feat.export.formats
+			title: "Export to HTML and CSV"
+			availability: all_users
+			confidence: explicit
+
+	collaboration_and_sharing:
+		- id: feat.collab.shared_collections
+			title: "Invite collaborators to collections"
+			availability: all_users
+			confidence: explicit
+			modes:
+				- invite_link
+				- email_invite
+		- id: feat.public_page
+			title: "Publish collection/profile page to web"
+			availability: all_users_opt_in
+			confidence: explicit
+			notes:
+				- dedicated_raindrop_page_domain_in_recent_versions
+
+	browser_extension_suite:
+		- id: feat.extension.toolbar_save
+			title: "Save current page from toolbar button"
+			availability: all_users
+			confidence: explicit
+		- id: feat.extension.sidebar
+			title: "Persistent side panel for browsing/saving"
+			availability: platform_limited
+			confidence: explicit
+			browsers:
+				- chrome
+				- edge
+				- firefox
+		- id: feat.extension.context_actions
+			title: "Context menu save link/image/audio/video"
+			availability: all_users
+			confidence: explicit
+		- id: feat.extension.save_tabs
+			title: "Save all open tabs"
+			availability: all_users
+			confidence: explicit
+		- id: feat.extension.omnibox
+			title: "Address bar search using keyword"
+			availability: platform_limited
+			confidence: explicit
+			not_available:
+				- safari
+				- vivaldi
+		- id: feat.extension.saved_indicator
+			title: "Saved page indicator"
+			availability: opt_in_setting
+			confidence: explicit
+		- id: feat.extension.hotkeys
+			title: "Keyboard shortcuts by browser"
+			availability: all_users
+			confidence: explicit
+
+	ai_assistant_and_mcp:
+		- id: feat.ai_assistant.stella
+			title: "AI assistant for search, summarize, organize"
+			availability: beta_pro
+			confidence: explicit
+		- id: feat.ai_privacy_model
+			title: "Private model execution and no training on user data"
+			availability: pro_only
+			confidence: explicit
+		- id: feat.mcp.integration
+			title: "MCP server support for coding tools"
+			availability: beta_pro
+			confidence: explicit
+			clients:
+				- vscode
+				- cursor
+				- claude_desktop
+
+	account_billing_security:
+		- id: feat.account.profile
+			title: "Email/username/password/avatar/language management"
+			availability: all_users
+			confidence: explicit
+		- id: feat.account.login_providers
+			title: "Social login providers"
+			availability: mixed_scope
+			confidence: explicit
+			ambiguity_note: "Some changelog entries indicate provider removals"
+		- id: feat.account.2fa
+			title: "Two-factor authentication"
+			availability: all_users
+			confidence: explicit
+		- id: feat.billing.pro
+			title: "Monthly/yearly Pro with annual discount"
+			availability: all_users
+			confidence: explicit
+		- id: feat.billing.refund
+			title: "30-day money-back policy"
+			availability: conditional_by_channel
+			confidence: explicit
+		- id: feat.security.infrastructure
+			title: "Data hosted on AWS Frankfurt, encrypted transport, backups"
+			availability: all_users
+			confidence: explicit
+
+	integrations:
+		- id: feat.api.public
+			title: "Public developer API"
+			availability: all_users
+			confidence: explicit
+		- id: feat.automation.ifttt
+			title: "IFTTT automation recipes"
+			availability: all_users
+			confidence: explicit
+		- id: feat.automation.n8n
+			title: "n8n node integration"
+			availability: all_users
+			confidence: explicit
+		- id: feat.automation.make
+			title: "Make.com integration"
+			availability: all_users
+			confidence: explicit
+		- id: feat.automation.coda
+			title: "Coda pack integration"
+			availability: all_users
+			confidence: explicit
+
+normalized_workflows:
+	- id: wf.search.full_text
+		actor: end_user
+		trigger: "Need to find content inside pages/PDF/EPUB"
+		preconditions:
+			- pro_subscription
+			- bookmark_copied_and_indexed
+		steps:
+			- open_search_field
+			- enter_query
+			- execute_search
+			- refine_with_operators_or_filters
+		expected_outcome: "Result set includes content matches"
+		edge_cases:
+			- indexing_delay_for_new_bookmarks
+			- no_ocr_for_scanned_pdfs
+
+	- id: wf.search.disable_full_text
+		actor: end_user
+		steps:
+			- choose_in_title_description_filter
+			- or_prefix_query_with_info_colon
+
+	- id: wf.cleanup.duplicates
+		actor: end_user
+		preconditions: [pro_subscription]
+		steps:
+			- open_search_filter_duplicates
+			- select_items
+			- delete_selected
+		safety_note: "Duplicate view intentionally excludes original items"
+
+	- id: wf.cleanup.broken_links
+		actor: end_user
+		preconditions: [pro_subscription]
+		steps:
+			- open_search_filter_broken_links
+			- review_ghost_marked_items
+			- select_items
+			- delete_selected
+
+	- id: wf.bookmark.create.manual
+		actor: end_user
+		steps:
+			- open_web_app
+			- click_add
+			- paste_url
+			- save
+
+	- id: wf.bookmark.create.extension
+		actor: end_user
+		steps:
+			- visit_target_page
+			- click_extension_or_shortcut
+			- choose_collection_and_tags
+			- save
+
+	- id: wf.bookmark.save_all_tabs
+		actor: end_user
+		steps:
+			- open_extension_context_menu
+			- run_save_tabs_action
+			- verify_date_tag_assigned
+
+	- id: wf.bookmark.bulk_move
+		actor: end_user
+		steps:
+			- multi_select_items
+			- click_move
+			- choose_destination_collection
+
+	- id: wf.bookmark.bulk_tag
+		actor: end_user
+		steps:
+			- multi_select_items
+			- click_add_tags
+			- enter_comma_separated_tags
+
+	- id: wf.bookmark.delete_single
+		actor: end_user
+		steps:
+			- hover_item
+			- click_trash_icon
+
+	- id: wf.bookmark.delete_bulk
+		actor: end_user
+		steps:
+			- multi_select_items
+			- click_delete
+
+	- id: wf.preview.refresh
+		actor: end_user
+		steps:
+			- open_item_context_menu
+			- click_refresh_preview
+
+	- id: wf.tags.manage_single
+		actor: end_user
+		steps:
+			- open_item_edit
+			- update_tags
+			- save
+
+	- id: wf.thumbnail.change
+		actor: end_user
+		steps:
+			- open_item_edit
+			- click_thumbnail
+			- choose_detected_image_or_upload
+
+	- id: wf.reminder.create
+		actor: end_user
+		steps:
+			- open_bookmark_edit
+			- set_reminder_datetime
+			- save
+
+	- id: wf.backup.request_manual
+		actor: end_user
+		steps:
+			- open_backup_settings
+			- click_create_new
+			- wait_for_email_link
+
+	- id: wf.backup.enable_cloud_auto
+		actor: end_user
+		preconditions: [pro_subscription]
+		steps:
+			- open_backup_settings
+			- connect_cloud_provider
+			- enable_toggle
+			- verify_initial_backup_created
+
+	- id: wf.backup.restore
+		actor: end_user
+		steps:
+			- open_import_page
+			- upload_backup_file
+			- start_import
+
+	- id: wf.account.transfer
+		actor: end_user
+		steps:
+			- export_backup_from_source_account
+			- logout_source
+			- login_destination_account
+			- import_backup
+
+	- id: wf.account.cancel_subscription
+		actor: end_user
+		branches:
+			- web_checkout: [open_settings_subscription, change_subscription, manage, cancel]
+			- app_store: [cancel_in_apple_subscriptions]
+			- play_store: [cancel_in_google_play]
+
+	- id: wf.billing.change_payment_method
+		actor: end_user
+		steps:
+			- open_subscription_settings
+			- click_change_subscription
+			- manage
+			- update_payment_method
+			- set_default
+
+	- id: wf.collaboration.invite
+		actor: collection_owner
+		steps:
+			- open_collection_settings
+			- add_collaborator_by_email_or_link
+			- send_invite
+
+	- id: wf.public_page.publish
+		actor: end_user
+		steps:
+			- select_collection
+			- enable_public_visibility
+			- share_public_url
+
+	- id: wf.extension.enable_saved_indicator
+		actor: end_user
+		steps:
+			- open_extension
+			- open_extension_settings
+			- enable_saved_page_indicator_permission
+
+	- id: wf.ai.assistant_organize_bulk
+		actor: end_user
+		preconditions: [pro_subscription, ai_assistant_enabled]
+		steps:
+			- open_ai_assistant
+			- issue_plain_language_instruction
+			- review_proposed_changes
+			- apply_changes
+
+	- id: wf.mcp.connect_vscode
+		actor: developer_user
+		preconditions: [beta_access]
+		steps:
+			- create_mcp_config_file
+			- add_raindrop_mcp_server_entry
+			- restart_client
+			- authenticate
+			- run_queries
+
+use_cases:
+	- id: uc.research_archive
+		persona: researcher
+		objective: "Persist long-term web knowledge with searchable content"
+		enabling_features:
+			- feat.bookmark.create
+			- feat.search.full_text
+			- feat.backup.auto
+	- id: uc.read_later
+		persona: busy_professional
+		objective: "Capture now, revisit later"
+		enabling_features:
+			- feat.bookmark.create
+			- feat.reminders.bookmark
+			- feat.search.recent
+	- id: uc.team_curation
+		persona: small_team
+		objective: "Co-curate links for projects"
+		enabling_features:
+			- feat.collab.shared_collections
+			- feat.tags.system
+			- feat.bookmark.bulk
+	- id: uc_content_cleanup
+		persona: power_user
+		objective: "Keep archive healthy"
+		enabling_features:
+			- feat.bookmark.duplicates
+			- feat.bookmark.broken_links
+	- id: uc_public_knowledge_page
+		persona: creator
+		objective: "Publish curated resources"
+		enabling_features:
+			- feat.public_page
+			- feat.sorting_and_views
+	- id: uc_cross_device_capture
+		persona: multi_device_user
+		objective: "Save from browser and phone with sync"
+		enabling_features:
+			- feat.extension.toolbar_save
+			- feat.bookmark.create
+			- feat.search.recent
+	- id: uc_bulk_session_save
+		persona: tab_heavy_user
+		objective: "Archive active browsing session"
+		enabling_features:
+			- feat.extension.save_tabs
+			- feat.tags.system
+	- id: uc_pdf_highlighting
+		persona: student
+		objective: "Highlight and retrieve passages from PDFs"
+		enabling_features:
+			- feat.highlights.pdf
+			- feat.search.full_text
+	- id: uc_api_integrator
+		persona: developer
+		objective: "Build custom workflows around bookmark data"
+		enabling_features:
+			- feat.api.public
+			- feat.automation.ifttt
+			- feat.automation.n8n
+	- id: uc_ai_organization
+		persona: overwhelmed_user
+		objective: "Auto-assign collections and tags"
+		enabling_features:
+			- feat.ai_suggestions
+			- feat.ai_assistant.stella
+
+platform_matrix:
+	web:
+		high_confidence_capabilities:
+			- full_library_management
+			- search_and_filters
+			- bulk_operations
+			- collaboration
+			- public_pages
+			- backups_import_export
+	desktop:
+		high_confidence_capabilities:
+			- web_parity_for_core_management
+			- keyboard_driven_navigation
+	ios:
+		high_confidence_capabilities:
+			- share_to_save
+			- bookmark_management
+			- reminders
+			- highlights
+		caveats:
+			- language_support_note_mentions_english_only_in_specific_context
+	android:
+		high_confidence_capabilities:
+			- share_to_save
+			- bookmark_management
+			- highlights
+			- reminders
+	extension.chrome:
+		high_confidence_capabilities:
+			- one_click_save
+			- side_panel
+			- save_tabs
+			- omnibox_search
+			- saved_indicator
+	extension.edge:
+		high_confidence_capabilities:
+			- one_click_save
+			- side_panel
+			- save_tabs
+			- custom_hotkeys
+	extension.firefox:
+		high_confidence_capabilities:
+			- one_click_save
+			- side_panel
+			- context_menu_save
+	extension.safari:
+		high_confidence_capabilities:
+			- one_click_save
+			- context_menu_save
+		caveats:
+			- no_omnibox_keyword_search
+
+pricing_gates:
+	free_plan:
+		included:
+			- unlimited_bookmarks
+			- unlimited_collections
+			- collaboration_core
+			- manual_backups
+		restricted:
+			- full_text_search
+			- permanent_copy
+			- duplicate_filter
+			- broken_links_filter
+			- automatic_cloud_backups
+			- advanced_ai_features
+	pro_plan:
+		unlocks:
+			- full_text_search
+			- permanent_copy
+			- ai_search_semantics
+			- ai_assistant_and_suggestions
+			- broken_links_and_duplicates
+			- larger_upload_limit
+			- cloud_backup_automation
+		commercial_notes:
+			- monthly_or_yearly
+			- yearly_discount_approximately_20_percent
+			- refund_policy_30_days
+
+security_privacy:
+	hosting:
+		provider: aws
+		primary_region: frankfurt_germany
+		confidence: explicit
+	transport_security:
+		- https_required
+		- rsa_2048
+		- pfs
+		- sha_256
+	storage_safety:
+		- three_copies_across_distributed_data_centers
+		- point_in_time_restore_within_past_year
+	access_control:
+		- temporary_direct_file_urls_expire_around_10_minutes
+		- private_by_default_unless_collection_public
+	ai_privacy:
+		- private_model
+		- no_training_on_user_data
+		- no_public_ai_api_data_routing_claimed
+
+limitations_and_constraints:
+	- id: lim.search.index_delay
+		statement: "Full-text index is not immediate"
+		confidence: explicit
+	- id: lim.search.max_chars
+		statement: "Index supports up to 300000 chars per document"
+		confidence: explicit
+	- id: lim.search.ocr
+		statement: "No OCR in PDF full-text"
+		confidence: explicit
+	- id: lim.backups.max_count
+		statement: "Up to 30 recent backups retained"
+		confidence: explicit
+	- id: lim.backups.scope
+		statement: "Uploaded files and collection icons excluded from backup"
+		confidence: explicit
+	- id: lim.extension.omnibox_availability
+		statement: "Address bar keyword search unavailable in Safari and Vivaldi"
+		confidence: explicit
+
+troubleshooting_playbooks:
+	- id: tp.sync_issue
+		symptoms:
+			- recent_changes_not_visible_on_other_device
+		checks:
+			- verify_login_to_same_account
+			- check_network
+			- force_refresh_or_restart
+			- inspect_service_status
+	- id: tp.false_broken_links
+		symptoms:
+			- live_links_marked_as_broken
+		checks:
+			- retry_check
+			- adjust_checker_mode
+			- verify_target_site_rate_limits_or_bot_protection
+	- id: tp.login_problems
+		symptoms:
+			- cannot_sign_in
+		checks:
+			- password_reset
+			- provider_signin_method
+			- session_cleanup
+	- id: tp.open_multiple_links_blocked
+		symptoms:
+			- bulk_open_not_working
+		checks:
+			- browser_popup_permissions
+			- extension_permissions
+
+changelog_capabilities:
+	notable_introductions:
+		- "AI Assistant Stella"
+		- "AI semantic search and multilingual search"
+		- "PDF highlighting"
+		- "OneDrive cloud backup destination"
+		- "MCP beta support"
+		- "macOS share extension"
+	recurring_improvement_themes:
+		- search_relevance_and_speed
+		- permanent_copy_coverage
+		- extension_shortcuts_and_stability
+		- metadata_parsing
+		- bulk_uploads_and_large_dataset_performance
+
+implementation_blueprint_for_similar_product:
+	architecture:
+		services:
+			- auth_service
+			- bookmark_ingest_service
+			- metadata_extractor
+			- permanent_copy_renderer
+			- search_indexer
+			- recommendation_ai_service
+			- backup_export_service
+			- collaboration_service
+			- notifications_service
+			- integrations_gateway
+		storage:
+			- primary_relational_db_for_entities
+			- object_storage_for_files_and_snapshots
+			- search_engine_for_full_text_and_operator_queries
+			- queue_for_async_extraction_and_indexing
+	required_background_jobs:
+		- fetch_metadata
+		- generate_thumbnail
+		- build_permanent_copy
+		- index_full_text
+		- run_link_health_checks
+		- generate_daily_backups
+		- send_reminder_notifications
+	critical_product_flows_to_prioritize:
+		- save_link_fast_path
+		- full_text_search_with_filters
+		- bulk_edit_and_cleanup
+		- backup_and_restore
+		- browser_extension_capture
+		- ai_assistant_organization
+	minimum_quality_bars:
+		- eventual_consistency_explained_to_users
+		- reversible_bulk_operations_with_confirmations
+		- transparent_tier_gating_in_ui
+		- privacy_and_data_portability_controls
+
+open_questions_for_downstream_ai:
+	- "Define exact permission model for collaborators (viewer/editor granularity)."
+	- "Resolve legacy vs current social login provider support."
+	- "Decide reminder availability for Free vs Pro with clear SKU matrix."
+	- "Specify OCR strategy if parity with scanned PDFs is required."
+	- "Define formal SLA for indexing latency and link checks."

@@ -20,6 +20,8 @@ import { createMetadataWorker } from './metadata.worker.js';
 import { createArchiveWorker } from './archive.worker.js';
 import { createLinkHealthWorker, registerNightlyLinkHealthJob } from './linkhealth.worker.js';
 import { logger } from '../lib/logger.js';
+import { prisma } from '../lib/prisma.js';
+import { closeRedisConnection } from '../lib/redis.js';
 
 logger.info('worker: starting background worker process');
 
@@ -35,11 +37,23 @@ registerNightlyLinkHealthJob().catch((err) => {
 });
 
 // Graceful shutdown
+let isShuttingDown = false;
+
 async function shutdown(): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
   logger.info('worker: received shutdown signal, draining workers...');
-  await Promise.all([metadataWorker.close(), archiveWorker.close(), linkHealthWorker.close()]);
-  logger.info('worker: shutdown complete');
-  process.exit(0);
+
+  try {
+    await Promise.all([metadataWorker.close(), archiveWorker.close(), linkHealthWorker.close()]);
+    await Promise.all([prisma.$disconnect(), closeRedisConnection()]);
+    logger.info('worker: shutdown complete');
+    process.exit(0);
+  } catch (err) {
+    logger.error({ err }, 'worker: shutdown failed');
+    process.exit(1);
+  }
 }
 
 process.on('SIGTERM', () => {

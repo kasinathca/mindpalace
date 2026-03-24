@@ -6,6 +6,7 @@
 // Memoized with React.memo to avoid unnecessary re-renders.
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useBookmarksStore } from '../../stores/bookmarksStore.js';
 import { EditBookmarkModal } from './EditBookmarkModal.js';
 import { cn } from '../../utils/cn.js';
@@ -81,11 +82,16 @@ function LinkStatusDot({ status }: { status: string }): React.JSX.Element {
 interface BookmarkCardProps {
   bookmark: BookmarkItem;
   view?: 'grid' | 'list';
+  /** When provided, a checkbox appears and clicking it toggles selection. */
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const BookmarkCard = React.memo(function BookmarkCard({
   bookmark,
   view = 'grid',
+  isSelected = false,
+  onToggleSelect,
 }: BookmarkCardProps): React.JSX.Element {
   const { updateBookmark, deleteBookmark } = useBookmarksStore();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -118,8 +124,21 @@ export const BookmarkCard = React.memo(function BookmarkCard({
           className={cn(
             'group flex items-center gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/40',
             isDeleting && 'opacity-50',
+            isSelected && 'border-primary ring-1 ring-primary/40',
           )}
         >
+          {/* Selection checkbox (shown only when multi-select mode is active) */}
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(bookmark.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 flex-shrink-0 cursor-pointer rounded"
+              aria-label={`Select "${bookmark.title}"`}
+            />
+          )}
+
           {/* Favicon */}
           <img
             src={bookmark.faviconUrl ?? `https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
@@ -161,6 +180,33 @@ export const BookmarkCard = React.memo(function BookmarkCard({
 
           {/* Actions */}
           <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <Link
+              to={`/bookmarks/${bookmark.id}`}
+              aria-label="View details"
+              onClick={(e) => e.stopPropagation()}
+              className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {/* Eye icon */}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+            </Link>
             <button
               type="button"
               aria-label={bookmark.isFavourite ? 'Remove from favourites' : 'Add to favourites'}
@@ -230,8 +276,27 @@ export const BookmarkCard = React.memo(function BookmarkCard({
         'group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all hover:border-primary/40 hover:shadow-md',
         isDeleting && 'opacity-50',
         bookmark.isPinned && 'ring-1 ring-primary/30',
+        isSelected && 'border-primary ring-2 ring-primary/40',
       )}
     >
+      {/* Selection checkbox (shown on hover or when selected) */}
+      {onToggleSelect && (
+        <div
+          className={cn(
+            'absolute left-2 top-2 z-10 transition-opacity',
+            isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(bookmark.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 cursor-pointer rounded bg-background/80 shadow"
+            aria-label={`Select "${bookmark.title}"`}
+          />
+        </div>
+      )}
       {/* Cover image */}
       <a
         href={bookmark.url}
@@ -321,6 +386,33 @@ export const BookmarkCard = React.memo(function BookmarkCard({
 
       {/* Hover action bar */}
       <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <Link
+          to={`/bookmarks/${bookmark.id}`}
+          aria-label="View details"
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-full bg-background/80 p-1.5 shadow-sm backdrop-blur-sm hover:bg-background"
+        >
+          {/* Eye icon */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+            />
+          </svg>
+        </Link>
         <button
           type="button"
           aria-label={bookmark.isFavourite ? 'Remove from favourites' : 'Add to favourites'}

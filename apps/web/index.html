@@ -6,6 +6,23 @@
     <meta name="description" content="Mind Palace — Save, organise, and search your digital library." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Mind Palace</title>
+    <!--
+      Inline theme initialisation — runs synchronously before any CSS/JS loads
+      so there is no flash of unstyled (light) content when dark mode is active.
+      Reads the lower-case string stored by SettingsPage ("light" | "dark" | "system").
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('mindpalace-theme');
+          var isDark =
+            stored === 'dark' ||
+            (stored !== 'light' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

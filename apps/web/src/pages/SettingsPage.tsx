@@ -219,6 +219,12 @@ function ThemeSection(): React.JSX.Element {
       choice === 'dark' ||
       (choice === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', isDark);
+    // Persist preference to backend (fire-and-forget — UI is already applied)
+    void apiUpdateMe({ theme: choice.toUpperCase() as 'LIGHT' | 'DARK' | 'SYSTEM' }).catch(
+      () => {
+        /* non-critical — localStorage already applied */
+      },
+    );
   }
 
   void current; // used for SSR guard in future

@@ -9,6 +9,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiGetBookmark } from '../api/bookmarks.api.js';
 import { apiListAnnotations } from '../api/annotations.api.js';
 import { NoteCard } from '../components/bookmarks/NoteCard.js';
+import { PermanentCopyViewer } from '../components/bookmarks/PermanentCopyViewer.js';
+import { AnnotationToolbar } from '../components/bookmarks/AnnotationToolbar.js';
 import { FullPageSpinner } from '../components/common/LoadingSpinner.js';
 import type { BookmarkItem } from '../api/bookmarks.api.js';
 import type { AnnotationItem } from '../api/annotations.api.js';
@@ -21,6 +23,7 @@ export default function BookmarkDetailPage(): React.ReactElement {
   const [annotations, setAnnotations] = useState<AnnotationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'annotations' | 'saved-copy'>('annotations');
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -58,7 +61,8 @@ export default function BookmarkDetailPage(): React.ReactElement {
     );
   }
 
-  const noteAnnotations = annotations.filter((a) => a.type === 'NOTE');
+  // Show all annotation types (NOTE and HIGHLIGHT) — NoteCard handles both
+  const allAnnotations = annotations;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -148,27 +152,74 @@ export default function BookmarkDetailPage(): React.ReactElement {
         )}
       </div>
 
-      {/* ── Annotations section ────────────────────────────────────────── */}
-      {noteAnnotations.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-4 text-base font-semibold">Annotations</h2>
-          <div className="flex flex-col gap-3">
-            {noteAnnotations.map((ann) => (
-              <NoteCard
-                key={ann.id}
-                annotation={ann}
-                bookmarkId={bookmark.id}
-                onUpdated={(updated) =>
-                  setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
-                }
-                onDeleted={(deletedId) =>
-                  setAnnotations((prev) => prev.filter((a) => a.id !== deletedId))
-                }
-              />
-            ))}
+      {/* ── Tabbed section ─────────────────────────────────────────────── */}
+      <section className="mt-8">
+        <div className="mb-4 flex gap-1 border-b border-border">
+          <button
+            type="button"
+            onClick={() => setActiveTab('annotations')}
+            className={`px-3 pb-2 text-sm font-medium transition-colors ${
+              activeTab === 'annotations'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Annotations
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('saved-copy')}
+            className={`px-3 pb-2 text-sm font-medium transition-colors ${
+              activeTab === 'saved-copy'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Saved Copy
+          </button>
+        </div>
+
+        {activeTab === 'saved-copy' && (
+          <div className="relative">
+            {/* AnnotationToolbar floats over the text when user selects text */}
+            <AnnotationToolbar
+              bookmarkId={bookmark.id}
+              onCreated={(newAnnotation) => {
+                setAnnotations((prev) => [...prev, newAnnotation]);
+                setActiveTab('annotations');
+              }}
+            />
+            <PermanentCopyViewer bookmark={bookmark} isOpen />
           </div>
-        </section>
-      )}
+        )}
+
+        {activeTab === 'annotations' && (
+          <>
+            {allAnnotations.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {allAnnotations.map((ann) => (
+                  <NoteCard
+                    key={ann.id}
+                    annotation={ann}
+                    bookmarkId={bookmark.id}
+                    onUpdated={(updated) =>
+                      setAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+                    }
+                    onDeleted={(deletedId) =>
+                      setAnnotations((prev) => prev.filter((a) => a.id !== deletedId))
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No annotations yet. Switch to the <strong>Saved Copy</strong> tab and select
+                text to highlight or add a note.
+              </p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

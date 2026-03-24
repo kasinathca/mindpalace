@@ -55,4 +55,4 @@ The database schema is defined once in `apps/api/prisma/schema.prisma`. Prisma g
 ## References
 
 - [Prisma Documentation](https://www.prisma.io/docs)
-- [MINDPALACE_DEVELOPMENT_PLAN.md — Section 4](../MINDPALACE_DEVELOPMENT_PLAN.md)
+- [mindpalace-development-plan.md — Section 4](../docs/planning/mindpalace-development-plan.md)

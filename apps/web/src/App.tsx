@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // App.tsx — Root router and route definitions
 //
-// Route structure follows the architecture diagram in MINDPALACE_DEVELOPMENT_PLAN.md
+// Route structure follows the architecture diagram in docs/planning/mindpalace-development-plan.md
 // Section 7.1. New pages are added here as each sprint delivers them.
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { Suspense, lazy } from 'react';

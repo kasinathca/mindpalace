@@ -6,7 +6,7 @@ This document closes the initial review-and-feasibility todo set and summarizes 
 
 - Exhaustive review report: [EXHAUSTIVE_CODE_REVIEW_2026-03-24.md](EXHAUSTIVE_CODE_REVIEW_2026-03-24.md)
 - Feature feasibility matrix: [RAINDROP_FEATURE_FEASIBILITY_MATRIX_2026-03-24.md](RAINDROP_FEATURE_FEASIBILITY_MATRIX_2026-03-24.md)
-- Source feature definition: [../raindrop_master_spec.yaml](../raindrop_master_spec.yaml)
+- Source feature definition: [./specs/raindrop/raindrop_master_spec.yaml](./specs/raindrop/raindrop_master_spec.yaml)
 
 ## Current Readiness Snapshot
 

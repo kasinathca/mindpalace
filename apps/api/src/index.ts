@@ -23,25 +23,26 @@ const server = app.listen(env.PORT, () => {
 
 let isShuttingDown = false;
 
-async function shutdown(signal: string): Promise<void> {
+function shutdown(signal: string): void {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
   logger.info({ signal }, 'api: shutdown started');
 
-  server.close(async (closeErr) => {
+  server.close((closeErr) => {
     if (closeErr) {
       logger.error({ err: closeErr }, 'api: server close failed');
     }
 
-    try {
-      await Promise.all([prisma.$disconnect(), closeRedisConnection()]);
-      logger.info('api: graceful shutdown complete');
-      process.exit(closeErr ? 1 : 0);
-    } catch (err) {
-      logger.error({ err }, 'api: shutdown cleanup failed');
-      process.exit(1);
-    }
+    void Promise.all([prisma.$disconnect(), closeRedisConnection()])
+      .then(() => {
+        logger.info('api: graceful shutdown complete');
+        process.exit(closeErr ? 1 : 0);
+      })
+      .catch((err) => {
+        logger.error({ err }, 'api: shutdown cleanup failed');
+        process.exit(1);
+      });
   });
 
   setTimeout(() => {
@@ -51,9 +52,9 @@ async function shutdown(signal: string): Promise<void> {
 }
 
 process.on('SIGTERM', () => {
-  void shutdown('SIGTERM');
+  shutdown('SIGTERM');
 });
 
 process.on('SIGINT', () => {
-  void shutdown('SIGINT');
+  shutdown('SIGINT');
 });

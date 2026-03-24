@@ -58,4 +58,4 @@ Modules only communicate with each other by importing from another module's **se
 ## References
 
 - [Building Microservices — Sam Newman (O'Reilly)](https://www.oreilly.com/library/view/building-microservices-2nd/9781492034018/)
-- [MINDPALACE_DEVELOPMENT_PLAN.md — Section 2.1](../MINDPALACE_DEVELOPMENT_PLAN.md)
+- [mindpalace-development-plan.md — Section 2.1](../docs/planning/mindpalace-development-plan.md)

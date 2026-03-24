@@ -88,7 +88,7 @@ mindpalace/
 
 For full architecture, database schema, API spec, sprint plan, and security details see:
 
-- [MINDPALACE_DEVELOPMENT_PLAN.md](./MINDPALACE_DEVELOPMENT_PLAN.md)
+- [mindpalace-development-plan.md](./docs/planning/mindpalace-development-plan.md)
 
 ---
 
@@ -148,6 +148,6 @@ Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests
 
 ---
 
-## Licence
+## License
 
-MIT — see [LICENCE](./LICENCE).
+MIT — see [LICENSE](./LICENSE).

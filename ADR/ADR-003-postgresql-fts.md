@@ -50,4 +50,4 @@ Search queries use `ts_rank_cd` for relevance ordering and `ts_headline` for res
 ## References
 
 - [PostgreSQL Full Text Search Documentation](https://www.postgresql.org/docs/16/textsearch.html)
-- [MINDPALACE_DEVELOPMENT_PLAN.md — Section 12](../MINDPALACE_DEVELOPMENT_PLAN.md)
+- [mindpalace-development-plan.md — Section 12](../docs/planning/mindpalace-development-plan.md)

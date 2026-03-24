@@ -1,6 +1,6 @@
 # Raindrop Feature Feasibility Matrix (2026-03-24)
 
-Source of truth: [raindrop_master_spec.yaml](../raindrop_master_spec.yaml)
+Source of truth: [./specs/raindrop/raindrop_master_spec.yaml](./specs/raindrop/raindrop_master_spec.yaml)
 Constraint model: moderate refactors allowed, major redesign out of scope.
 
 Status legend:

@@ -73,7 +73,7 @@ This project adheres to [Semantic Versioning](https://semver.org/) and the forma
 - `README.md` with prerequisites, quick start, scripts table, project structure, team
 - `CONTRIBUTING.md` with branching strategy, Conventional Commits guide, PR process, Definition of Done
 - `CHANGELOG.md` (this file) following Keep a Changelog format
-- `LICENCE` — MIT, 2026
+- `LICENSE` — MIT, 2026
 
 **GitHub / CI**
 

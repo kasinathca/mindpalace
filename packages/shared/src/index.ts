@@ -292,5 +292,4 @@ export interface UpdateMeInput {
 export interface AuthResponse {
   user: User;
   accessToken: string;
-  refreshToken: string;
 }

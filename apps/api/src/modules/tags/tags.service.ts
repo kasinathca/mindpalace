@@ -68,8 +68,11 @@ export async function listTags(userId: string): Promise<TagWithCount[]> {
 
 /** Create a new tag for the user. Name uniqueness is enforced at DB level. */
 export async function createTag(userId: string, input: CreateTagInput): Promise<TagWithCount> {
-  const existing = await prisma.tag.findUnique({
-    where: { userId_name: { userId, name: input.name } },
+  const existing = await prisma.tag.findFirst({
+    where: {
+      userId,
+      name: { equals: input.name, mode: 'insensitive' },
+    },
   });
   if (existing) {
     throw new AppError(HTTP.CONFLICT, `Tag "${input.name}" already exists.`);
@@ -100,8 +103,12 @@ export async function updateTag(
 
   // If renaming, check uniqueness
   if (input.name && input.name !== existing.name) {
-    const nameConflict = await prisma.tag.findUnique({
-      where: { userId_name: { userId, name: input.name } },
+    const nameConflict = await prisma.tag.findFirst({
+      where: {
+        userId,
+        name: { equals: input.name, mode: 'insensitive' },
+        NOT: { id: tagId },
+      },
     });
     if (nameConflict) {
       throw new AppError(HTTP.CONFLICT, `Tag "${input.name}" already exists.`);

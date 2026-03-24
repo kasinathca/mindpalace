@@ -89,6 +89,7 @@ mindpalace/
 For full architecture, database schema, API spec, sprint plan, and security details see:
 
 - [mindpalace-development-plan.md](./docs/planning/mindpalace-development-plan.md)
+- [STANDARDS.md](./STANDARDS.md) — binding engineering constitution for coding, reviews, and Copilot sessions
 
 ---
 

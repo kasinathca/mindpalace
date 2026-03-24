@@ -20,6 +20,7 @@ import { bookmarksRouter } from './modules/bookmarks/bookmarks.router.js';
 import { collectionsRouter } from './modules/collections/collections.router.js';
 import { tagsRouter } from './modules/tags/tags.router.js';
 import { searchRouter } from './modules/search/search.router.js';
+import { systemRouter } from './modules/system/system.router.js';
 
 export function createApp(): Express {
   const app = express();
@@ -65,17 +66,10 @@ export function createApp(): Express {
   // ── Global rate limiter ───────────────────────────────────────────────────
   app.use(defaultLimiter);
 
-  // ── Health check (no auth required) ──────────────────────────────────────
-  app.get('/api/v1/health', (_req, res) => {
-    res.json({
-      success: true,
-      data: { status: 'ok', version: '0.1.0', timestamp: new Date().toISOString() },
-    });
-  });
-
   // ── API Routes ────────────────────────────────────────────────────────────
   // NOTE: Annotation routes (/api/v1/bookmarks/:bookmarkId/annotations) are
   // mounted as a nested sub-router inside bookmarksRouter, not directly here.
+  app.use('/api/v1', systemRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/bookmarks', bookmarksRouter);
   app.use('/api/v1/collections', collectionsRouter);

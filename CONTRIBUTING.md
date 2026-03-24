@@ -2,6 +2,8 @@
 
 Thank you for contributing. Please read this guide fully before opening a pull request.
 
+`STANDARDS.md` at the repository root is binding and must be followed for all architectural, security, and quality decisions.
+
 ---
 
 ## Table of Contents

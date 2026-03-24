@@ -36,7 +36,7 @@ beforeAll(async () => {
 // ── POST /auth/register ───────────────────────────────────────────────────────
 
 describe('POST /auth/register', () => {
-  it('creates a user and returns 201 with tokens + sanitised user', async () => {
+  it('creates a user and returns 201 with access token + sanitised user', async () => {
     const res = await api().post(`${BASE}/register`).send(VALID_USER);
 
     expect(res.status).toBe(201);
@@ -98,7 +98,7 @@ describe('POST /auth/register', () => {
 // ── POST /auth/login ──────────────────────────────────────────────────────────
 
 describe('POST /auth/login', () => {
-  it('returns 200 with access + refresh tokens on valid credentials', async () => {
+  it('returns 200 with access token on valid credentials', async () => {
     const res = await api().post(`${BASE}/login`).send({
       email: VALID_USER.email,
       password: VALID_USER.password,

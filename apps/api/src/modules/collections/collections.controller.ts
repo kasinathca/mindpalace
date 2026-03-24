@@ -10,6 +10,9 @@ import type {
   DeleteCollectionQuery,
 } from './collections.schemas.js';
 
+// `req.user!` is safe in this controller because protected routes always run
+// behind JWT auth middleware that attaches the authenticated user.
+
 export async function getTree(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const tree = await CollectionsService.getCollectionTree(req.user!.id);

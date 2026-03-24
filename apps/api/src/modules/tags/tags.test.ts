@@ -12,6 +12,7 @@ vi.mock('../../lib/prisma.js', () => ({
   prisma: {
     tag: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       create: vi.fn(),
@@ -94,7 +95,7 @@ describe('TagService.listTags', () => {
 
 describe('TagService.createTag', () => {
   it('creates a tag and returns it with bookmarkCount 0', async () => {
-    vi.mocked(prisma.tag.findUnique).mockResolvedValue(null); // no duplicate
+    vi.mocked(prisma.tag.findFirst).mockResolvedValue(null); // no duplicate
     vi.mocked(prisma.tag.create).mockResolvedValue(mockTag as never);
 
     const result = await createTag(USER_ID, {
@@ -108,7 +109,7 @@ describe('TagService.createTag', () => {
   });
 
   it('throws CONFLICT when tag name already exists', async () => {
-    vi.mocked(prisma.tag.findUnique).mockResolvedValue(mockTag as never);
+    vi.mocked(prisma.tag.findFirst).mockResolvedValue(mockTag as never);
 
     await expect(createTag(USER_ID, { name: 'react' } as never)).rejects.toBeInstanceOf(AppError);
   });
@@ -119,7 +120,7 @@ describe('TagService.createTag', () => {
 describe('TagService.updateTag', () => {
   it('updates the tag name', async () => {
     vi.mocked(prisma.tag.findUnique).mockResolvedValueOnce(mockTag as never);
-    vi.mocked(prisma.tag.findUnique).mockResolvedValueOnce(null); // no name conflict
+    vi.mocked(prisma.tag.findFirst).mockResolvedValueOnce(null); // no name conflict
     vi.mocked(prisma.tag.update).mockResolvedValue({ ...mockTag, name: 'vue' } as never);
 
     const result = await updateTag(USER_ID, TAG_ID, { name: 'vue' });

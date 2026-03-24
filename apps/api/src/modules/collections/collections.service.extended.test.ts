@@ -13,7 +13,7 @@
 //     • Moving to a valid different subtree            → 200
 //
 //   deleteCollection:
-//     • action=delete (cascade via SetNull)
+//     • action=delete (explicitly deletes member bookmarks, then collection)
 //     • action=move (relocates bookmarks to target)
 //     • action=move without targetCollectionId         → 400
 //     • action=move with foreign targetCollectionId    → 404
@@ -34,6 +34,7 @@ import { AppError } from '../../middleware/errorHandler.middleware.js';
 
 vi.mock('../../lib/prisma.js', () => ({
   prisma: {
+    $transaction: vi.fn(),
     collection: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('../../lib/prisma.js', () => ({
     },
     bookmark: {
       updateMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
   },
 }));
@@ -121,6 +123,9 @@ function makeCollection(overrides: {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation((callback: (tx: typeof prisma) => unknown) => {
+    return Promise.resolve(callback(prisma));
+  });
   // Default: cache always misses so DB path is executed
   mockCacheGet.mockResolvedValue(null);
   mockCacheSet.mockResolvedValue(undefined);
@@ -316,9 +321,10 @@ describe('CollectionService.deleteCollection', () => {
   beforeEach(() => {
     vi.mocked(prisma.collection.delete).mockResolvedValue(colToDelete as never);
     vi.mocked(prisma.bookmark.updateMany).mockResolvedValue({ count: 3 });
+    vi.mocked(prisma.bookmark.deleteMany).mockResolvedValue({ count: 3 });
   });
 
-  it('COL-DEL-001 — action=delete simply removes the collection (bookmarks use SetNull cascade)', async () => {
+  it('COL-DEL-001 — action=delete removes bookmarks, then deletes the collection', async () => {
     // Arrange
     vi.mocked(prisma.collection.findUnique).mockResolvedValue({
       ...colToDelete,
@@ -328,8 +334,11 @@ describe('CollectionService.deleteCollection', () => {
     // Act
     await deleteCollection(USER_ID, 'col_X', { action: 'delete' });
 
-    // Assert — no bookmark migration; only delete
+    // Assert — delete-mode removes member bookmarks explicitly
     expect(prisma.bookmark.updateMany).not.toHaveBeenCalled();
+    expect(prisma.bookmark.deleteMany).toHaveBeenCalledWith({
+      where: { collectionId: 'col_X', userId: USER_ID },
+    });
     expect(prisma.collection.delete).toHaveBeenCalledWith({ where: { id: 'col_X' } });
     expect(mockCacheDel).toHaveBeenCalledOnce();
   });
@@ -351,6 +360,7 @@ describe('CollectionService.deleteCollection', () => {
       where: { collectionId: 'col_X', userId: USER_ID },
       data: { collectionId: 'col_target' },
     });
+    expect(prisma.bookmark.deleteMany).not.toHaveBeenCalled();
     expect(prisma.collection.delete).toHaveBeenCalledOnce();
   });
 

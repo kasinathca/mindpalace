@@ -439,9 +439,13 @@ describe('GET /bookmarks/export', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/application\/json/);
-    const body = (res.body as ApiSuccessBody<Array<{ url: string; title: string }>>).data;
-    expect(Array.isArray(body)).toBe(true);
-    expect(body.some((b) => b.url === 'https://export-test.example.com')).toBe(true);
+    const body = JSON.parse(res.text) as {
+      version: number;
+      exportedAt: string;
+      bookmarks: Array<{ url: string; title: string }>;
+    };
+    expect(Array.isArray(body.bookmarks)).toBe(true);
+    expect(body.bookmarks.some((b) => b.url === 'https://export-test.example.com')).toBe(true);
   });
 
   it('exports bookmarks as HTML when format=html', async () => {

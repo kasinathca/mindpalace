@@ -18,6 +18,38 @@ import { updateBookmarkMetadata } from '../modules/bookmarks/bookmarks.service.j
 import { logger } from '../lib/logger.js';
 import type { MetadataJobData } from './queues.js';
 
+const PRIVATE_HOSTNAME_PATTERNS: RegExp[] = [
+  /^localhost$/i,
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\.0\.0\.0/,
+  /^::1$/,
+  /^fe80:/i,
+  /^fc[0-9a-f]{2}:/i,
+  /^fd[0-9a-f]{2}:/i,
+];
+
+const METADATA_HOSTNAMES = ['169.254.169.254', '[fd00:ec2::254]', 'metadata.google.internal'];
+
+function assertSafeOutboundUrl(url: string): void {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    throw new Error(`SSRF guard: invalid URL "${url}"`);
+  }
+
+  if (
+    METADATA_HOSTNAMES.includes(hostname) ||
+    PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))
+  ) {
+    throw new Error(`SSRF guard: requests to "${hostname}" are not permitted`);
+  }
+}
+
 function redisConnectionOptions(): {
   host: string;
   port: number;
@@ -97,6 +129,16 @@ export function createMetadataWorker(): Worker<MetadataJobData> {
     'metadata',
     async (job: Job<MetadataJobData>) => {
       const { bookmarkId, url } = job.data;
+
+      try {
+        assertSafeOutboundUrl(url);
+      } catch (ssrfError) {
+        logger.warn(
+          { bookmarkId, url, err: ssrfError },
+          'metadata.worker: blocked by outbound URL safety guard',
+        );
+        return;
+      }
 
       logger.info({ bookmarkId, url }, 'metadata.worker: starting extraction');
 

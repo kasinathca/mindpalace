@@ -1,5 +1,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // config/swagger.ts — OpenAPI 3.0 specification
+// Health endpoint is served by modules/system/system.router.ts.
 //
 // Single-file authoritative spec for the Mind Palace REST API.
 // Served at GET /api/docs (Swagger UI) and GET /api/docs.json (raw spec).
@@ -370,7 +371,8 @@ export const swaggerSpec: OpenApiDocument = {
         },
         responses: {
           '201': {
-            description: 'Account created — returns access token + user',
+            description:
+              'Account created — returns access token + user (refresh token set via HttpOnly cookie)',
             content: {
               'application/json': {
                 schema: {
@@ -404,7 +406,7 @@ export const swaggerSpec: OpenApiDocument = {
         },
         responses: {
           '200': {
-            description: 'Login successful',
+            description: 'Login successful (refresh token set via HttpOnly cookie)',
             content: {
               'application/json': {
                 schema: {
@@ -444,7 +446,7 @@ export const swaggerSpec: OpenApiDocument = {
         operationId: 'authRefresh',
         responses: {
           '200': {
-            description: 'New access token issued',
+            description: 'New access token issued (refresh token rotated via HttpOnly cookie)',
             content: {
               'application/json': {
                 schema: {

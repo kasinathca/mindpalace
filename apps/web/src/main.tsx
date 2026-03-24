@@ -9,7 +9,7 @@ import { useAuthStore } from './stores/authStore.js';
 // Must happen before any API calls are made.
 initApiClientStore({
   getAccessToken: () => useAuthStore.getState().accessToken,
-  setTokens: (access, refresh) => useAuthStore.getState().setTokens(access, refresh),
+  setTokens: (access) => useAuthStore.getState().setTokens(access),
   logoutUser: () => void useAuthStore.getState()._forceLogout(),
 });
 

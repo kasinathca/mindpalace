@@ -6,8 +6,7 @@
 //
 // Refresh token strategy:
 //   • Access token  → returned in JSON response body (short-lived, 15 min)
-//   • Refresh token → set as HttpOnly cookie AND returned in body
-//     (cookie for browser clients; body for mobile/API clients)
+//   • Refresh token → set as HttpOnly cookie only (never returned in body)
 //
 // NOTE: Refresh tokens are currently stateless (signed JWTs, not stored in DB).
 //       Server-side revocation (e.g. logout-all-devices) is deferred to Phase 3.
@@ -17,6 +16,9 @@ import type { Request, Response, NextFunction } from 'express';
 import * as AuthService from './auth.service.js';
 import { HTTP, COOKIE } from '../../config/constants.js';
 import { env } from '../../config/env.js';
+
+// `req.user!` is safe in authenticated handlers because auth middleware
+// populates `req.user` before these routes execute.
 
 interface RefreshCookieOptions {
   httpOnly: boolean;
@@ -50,7 +52,6 @@ export async function register(req: Request, res: Response, next: NextFunction):
       data: {
         user: result.user,
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
       },
     });
   } catch (err) {
@@ -67,7 +68,6 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       data: {
         user: result.user,
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
       },
     });
   } catch (err) {
@@ -91,7 +91,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
     res.cookie(COOKIE.REFRESH_TOKEN, result.refreshToken, getRefreshCookieOptions());
     res.status(HTTP.OK).json({
       success: true,
-      data: { accessToken: result.accessToken, refreshToken: result.refreshToken },
+      data: { accessToken: result.accessToken },
     });
   } catch (err) {
     next(err);

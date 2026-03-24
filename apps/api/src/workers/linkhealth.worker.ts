@@ -20,6 +20,38 @@ import { logger } from '../lib/logger.js';
 import { env } from '../config/env.js';
 import type { LinkHealthJobData } from './queues.js';
 
+const PRIVATE_HOSTNAME_PATTERNS: RegExp[] = [
+  /^localhost$/i,
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^169\.254\./,
+  /^0\.0\.0\.0/,
+  /^::1$/,
+  /^fe80:/i,
+  /^fc[0-9a-f]{2}:/i,
+  /^fd[0-9a-f]{2}:/i,
+];
+
+const METADATA_HOSTNAMES = ['169.254.169.254', '[fd00:ec2::254]', 'metadata.google.internal'];
+
+function assertSafeOutboundUrl(url: string): void {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname.toLowerCase();
+  } catch {
+    throw new Error(`SSRF guard: invalid URL "${url}"`);
+  }
+
+  if (
+    METADATA_HOSTNAMES.includes(hostname) ||
+    PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))
+  ) {
+    throw new Error(`SSRF guard: requests to "${hostname}" are not permitted`);
+  }
+}
+
 // ── Redis connection ──────────────────────────────────────────────────────────
 
 function redisConnection(): {
@@ -52,6 +84,8 @@ const HEALTH_USER_AGENT = 'MindPalace-LinkChecker/1.0 (+https://mindpalace.app)'
 
 async function checkUrl(url: string): Promise<CheckResult> {
   try {
+    assertSafeOutboundUrl(url);
+
     // Try HEAD first (lightweight)
     const headRes = await got.head(url, {
       timeout: { request: 10_000 },

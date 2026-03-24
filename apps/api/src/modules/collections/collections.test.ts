@@ -10,6 +10,7 @@ import { AppError } from '../../middleware/errorHandler.middleware.js';
 
 vi.mock('../../lib/prisma.js', () => ({
   prisma: {
+    $transaction: vi.fn(),
     collection: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('../../lib/prisma.js', () => ({
     },
     bookmark: {
       updateMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
   },
 }));
@@ -73,6 +75,9 @@ const flatChild = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.$transaction).mockImplementation((callback: (tx: typeof prisma) => unknown) => {
+    return Promise.resolve(callback(prisma));
+  });
 });
 
 // ── getCollectionTree ─────────────────────────────────────────────────────────
@@ -167,12 +172,16 @@ describe('CollectionService.updateCollection', () => {
 describe('CollectionService.deleteCollection', () => {
   it('deletes a collection without action', async () => {
     vi.mocked(prisma.collection.findUnique).mockResolvedValue(flatRoot as never);
+    vi.mocked(prisma.bookmark.deleteMany).mockResolvedValue({ count: 2 });
     vi.mocked(prisma.collection.delete).mockResolvedValue(flatRoot as never);
 
     await expect(
       deleteCollection(USER_ID, 'col_01', { action: 'delete' }),
     ).resolves.toBeUndefined();
 
+    expect(prisma.bookmark.deleteMany).toHaveBeenCalledWith({
+      where: { collectionId: 'col_01', userId: USER_ID },
+    });
     expect(prisma.collection.delete).toHaveBeenCalledWith({ where: { id: 'col_01' } });
   });
 
@@ -200,5 +209,6 @@ describe('CollectionService.deleteCollection', () => {
       where: { collectionId: 'col_01', userId: USER_ID },
       data: { collectionId: 'col_99' },
     });
+    expect(prisma.bookmark.deleteMany).not.toHaveBeenCalled();
   });
 });

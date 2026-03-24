@@ -9,13 +9,13 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // We import the store lazily inside the interceptor to avoid circular deps
 let getAccessToken: () => string | null = () => null;
-let setTokens: (access: string, refresh: string) => void = () => {};
+let setTokens: (access: string) => void = () => {};
 let logoutUser: () => void = () => {};
 
 /** Called once from main.tsx after the store is initialised. */
 export function initApiClientStore(storeRef: {
   getAccessToken: () => string | null;
-  setTokens: (access: string, refresh: string) => void;
+  setTokens: (access: string) => void;
   logoutUser: () => void;
 }): void {
   getAccessToken = storeRef.getAccessToken;
@@ -85,15 +85,15 @@ apiClient.interceptors.response.use(
       try {
         const response = await axios.post<{
           success: boolean;
-          data: { accessToken: string; refreshToken: string };
+          data: { accessToken: string };
         }>(
           `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000'}/api/v1/auth/refresh`,
           {},
           { withCredentials: true },
         );
 
-        const { accessToken, refreshToken } = response.data.data;
-        setTokens(accessToken, refreshToken);
+        const { accessToken } = response.data.data;
+        setTokens(accessToken);
         processQueue(null, accessToken);
 
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;

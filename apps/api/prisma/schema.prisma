@@ -154,7 +154,7 @@ model Bookmark {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   collectionId String?
-  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  collection   Collection? @relation(fields: [collectionId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -189,7 +189,9 @@ model Tag {
   // Relations
   bookmarks BookmarkTag[]
 
-  @@unique([userId, name]) // tag names are unique per user
+  @@unique([userId, name]) // app-level normalisation keeps names lowercase
+  // DB-level case-insensitive uniqueness is enforced in SQL migration via:
+  // CREATE UNIQUE INDEX ... ON tags(user_id, LOWER(name));
   @@index([userId])
   @@map("tags")
 }

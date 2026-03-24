@@ -64,6 +64,23 @@ interface SanitisedUser {
   updatedAt: string;
 }
 
+const USER_PUBLIC_SELECT = {
+  id: true,
+  email: true,
+  displayName: true,
+  avatarUrl: true,
+  emailVerified: true,
+  theme: true,
+  defaultView: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+const USER_AUTH_SELECT = {
+  ...USER_PUBLIC_SELECT,
+  passwordHash: true,
+} as const;
+
 function sanitiseUser(user: {
   id: string;
   email: string;
@@ -93,7 +110,10 @@ function sanitiseUser(user: {
 export async function register(
   input: RegisterInput,
 ): Promise<{ user: SanitisedUser; accessToken: string; refreshToken: string }> {
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  const existing = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: { id: true },
+  });
   if (existing) {
     throw new AppError(HTTP.CONFLICT, 'An account with this email already exists.');
   }
@@ -106,6 +126,7 @@ export async function register(
       passwordHash,
       displayName: input.displayName,
     },
+    select: USER_PUBLIC_SELECT,
   });
 
   const accessToken = signAccessToken(user.id, user.email);
@@ -117,7 +138,10 @@ export async function register(
 export async function login(
   input: LoginInput,
 ): Promise<{ user: SanitisedUser; accessToken: string; refreshToken: string }> {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: USER_AUTH_SELECT,
+  });
   if (!user) {
     // Use a constant-time comparison to prevent timing attacks (user enumeration)
     await bcrypt.compare(input.password, '$2a$12$invalidhash.padding.padding.padding.p');
@@ -145,7 +169,11 @@ export async function refreshTokens(
     throw new AppError(HTTP.UNAUTHORISED, 'Invalid or expired refresh token.');
   }
 
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const user = await prisma.user.findUnique({
+    where: { id: payload.sub },
+    select: { id: true, email: true },
+  });
+
   if (!user) {
     throw new AppError(HTTP.UNAUTHORISED, 'User not found.');
   }
@@ -157,7 +185,10 @@ export async function refreshTokens(
 }
 
 export async function forgotPassword(input: ForgotPasswordInput): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: { id: true, email: true },
+  });
 
   // Always return success to prevent user enumeration
   if (!user) return;
@@ -200,18 +231,27 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
 }
 
 export async function getMe(userId: string): Promise<SanitisedUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: USER_PUBLIC_SELECT,
+  });
   if (!user) throw new AppError(HTTP.NOT_FOUND, 'User not found.');
   return sanitiseUser(user);
 }
 
 export async function updateMe(userId: string, input: UpdateMeInput): Promise<SanitisedUser> {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, passwordHash: true },
+  });
   if (!user) throw new AppError(HTTP.NOT_FOUND, 'User not found.');
 
   // If changing email, ensure new email isn't taken
   if (input.email && input.email !== user.email) {
-    const taken = await prisma.user.findUnique({ where: { email: input.email } });
+    const taken = await prisma.user.findUnique({
+      where: { email: input.email },
+      select: { id: true },
+    });
     if (taken) throw new AppError(HTTP.CONFLICT, 'This email address is already in use.');
   }
 
@@ -235,6 +275,7 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Sa
       ...(input.theme ? { theme: input.theme } : {}),
       ...(input.defaultView ? { defaultView: input.defaultView } : {}),
     },
+    select: USER_PUBLIC_SELECT,
   });
 
   return sanitiseUser(updated);

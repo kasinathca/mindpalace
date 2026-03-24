@@ -181,21 +181,21 @@ Custom components follow this convention:
 
 All global state is managed with **Zustand 4**.
 
-| Store              | Persistence      | Contents                                                   |
-| ------------------ | ---------------- | ---------------------------------------------------------- |
-| `authStore`        | `sessionStorage` | `user`, `accessToken`, `refreshToken`, `isAuthenticated`   |
-| `bookmarksStore`   | None             | `bookmarks`, `cursor`, `hasMore`, `selectedIds`, `filters` |
-| `collectionsStore` | None             | `collections` (flat array), `tree` (built client-side)     |
-| `searchStore`      | None             | `query`, `filters`, `results`, `isSearching`               |
-| `tagsStore`        | None             | `tags` (flat array with counts)                            |
-| `uiStore`          | `localStorage`   | `theme`, `viewMode`, modal open/close states               |
+| Store              | Persistence        | Contents                                                   |
+| ------------------ | ------------------ | ---------------------------------------------------------- |
+| `authStore`        | None (memory-only) | `user`, `accessToken`, `isAuthenticated`                   |
+| `bookmarksStore`   | None               | `bookmarks`, `cursor`, `hasMore`, `selectedIds`, `filters` |
+| `collectionsStore` | None               | `collections` (flat array), `tree` (built client-side)     |
+| `searchStore`      | None               | `query`, `filters`, `results`, `isSearching`               |
+| `tagsStore`        | None               | `tags` (flat array with counts)                            |
+| `uiStore`          | `localStorage`     | `theme`, `viewMode`, modal open/close states               |
 
 ### Axios interceptor — token refresh
 
 `api/client.ts` intercepts `401 Unauthorized` responses and:
 
 1. Pauses all concurrent requests into a queue.
-2. Calls `POST /api/auth/refresh` with the stored refresh token.
+2. Calls `POST /api/auth/refresh` using the HttpOnly refresh cookie.
 3. On success, replays all queued requests with the new access token.
 4. On failure, calls `authStore._forceLogout()` and redirects to `/login`.
 

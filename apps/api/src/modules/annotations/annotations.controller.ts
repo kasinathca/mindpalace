@@ -6,6 +6,9 @@ import * as AnnotationsService from './annotations.service.js';
 import { HTTP } from '../../config/constants.js';
 import type { CreateAnnotationInput, UpdateAnnotationInput } from './annotations.schemas.js';
 
+// `req.user!` is safe in this controller because protected routes always run
+// behind JWT auth middleware that attaches the authenticated user.
+
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const annotations = await AnnotationsService.listAnnotations(

@@ -236,23 +236,41 @@ export async function deleteCollection(
     throw new AppError(HTTP.NOT_FOUND, 'Collection not found.');
   }
 
-  if (query.action === 'move') {
-    if (!query.targetCollectionId) {
-      throw new AppError(HTTP.BAD_REQUEST, 'targetCollectionId is required when action is "move".');
-    }
-    const target = await prisma.collection.findUnique({ where: { id: query.targetCollectionId } });
-    if (!target || target.userId !== userId) {
-      throw new AppError(HTTP.NOT_FOUND, 'Target collection not found.');
-    }
-    // Move bookmarks to target collection
-    await prisma.bookmark.updateMany({
-      where: { collectionId, userId },
-      data: { collectionId: query.targetCollectionId },
-    });
-  }
-  // If action === 'delete', bookmarks will be set to null (SetNull cascade)
+  await prisma.$transaction(async (tx) => {
+    if (query.action === 'move') {
+      if (!query.targetCollectionId) {
+        throw new AppError(
+          HTTP.BAD_REQUEST,
+          'targetCollectionId is required when action is "move".',
+        );
+      }
+      if (query.targetCollectionId === collectionId) {
+        throw new AppError(
+          HTTP.BAD_REQUEST,
+          'targetCollectionId must differ from the collection being deleted.',
+        );
+      }
 
-  await prisma.collection.delete({ where: { id: collectionId } });
+      const target = await tx.collection.findUnique({ where: { id: query.targetCollectionId } });
+      if (!target || target.userId !== userId) {
+        throw new AppError(HTTP.NOT_FOUND, 'Target collection not found.');
+      }
+
+      // Move bookmarks to target collection before deleting source collection.
+      await tx.bookmark.updateMany({
+        where: { collectionId, userId },
+        data: { collectionId: query.targetCollectionId },
+      });
+    } else {
+      // With Restrict FK, delete-mode must explicitly remove member bookmarks first.
+      await tx.bookmark.deleteMany({
+        where: { collectionId, userId },
+      });
+    }
+
+    await tx.collection.delete({ where: { id: collectionId } });
+  });
+
   await cacheDel(collectionCacheKey(userId));
 }
 

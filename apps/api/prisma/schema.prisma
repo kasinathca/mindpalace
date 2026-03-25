@@ -240,15 +240,15 @@ model PermanentCopy {
 
 model PermanentCopyVersion {
   id             String   @id @default(cuid())
-  rawHtml        String?
-  articleContent String?
-  sourceUrl      String?
-  mimeType       String   @default("text/html")
-  sizeBytes      Int?
-  capturedAt     DateTime @default(now())
-  createdAt      DateTime @default(now())
+  rawHtml        String?  @map("raw_html")
+  articleContent String?  @map("article_content")
+  sourceUrl      String?  @map("source_url")
+  mimeType       String   @default("text/html") @map("mime_type")
+  sizeBytes      Int?     @map("size_bytes")
+  capturedAt     DateTime @default(now()) @map("captured_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
-  bookmarkId String
+  bookmarkId String @map("bookmark_id")
   bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
 
   @@index([bookmarkId, capturedAt(sort: Desc)])

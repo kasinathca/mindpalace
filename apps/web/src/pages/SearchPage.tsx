@@ -11,6 +11,29 @@ import { useTagsStore } from '../stores/tagsStore.js';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard.js';
 import { EmptyState } from '../components/common/EmptyState.js';
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function renderHighlightedText(text: string, terms: string[]): React.ReactNode {
+  if (terms.length === 0 || text.trim().length === 0) return text;
+
+  const pattern = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'ig');
+  const parts = text.split(pattern);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+    const isMatch = terms.some((term) => part.toLowerCase() === term.toLowerCase());
+    return isMatch ? (
+      <mark key={`match-${index}`} className="rounded bg-yellow-200/80 px-0.5 text-foreground">
+        {part}
+      </mark>
+    ) : (
+      <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
+    );
+  });
+}
+
 function SearchIcon(): React.JSX.Element {
   return (
     <svg
@@ -75,7 +98,7 @@ export default function SearchPage(): React.ReactElement {
         </div>
         <input
           ref={inputRef}
-          type="search"
+          type="text"
           placeholder="Search bookmarks… (title, description, URL, notes)"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -113,7 +136,6 @@ export default function SearchPage(): React.ReactElement {
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
-              style={tag.color ? ({ '--tag-color': tag.color } as React.CSSProperties) : {}}
             >
               {tag.name}
             </button>
@@ -150,7 +172,14 @@ export default function SearchPage(): React.ReactElement {
       {results.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {results.map((bookmark) => (
-            <BookmarkCard key={bookmark.id} bookmark={bookmark} view="grid" />
+            <div key={bookmark.id} className="space-y-2">
+              <BookmarkCard bookmark={bookmark} view="grid" />
+              {bookmark.searchSnippet && (
+                <p className="line-clamp-3 px-1 text-xs text-muted-foreground">
+                  {renderHighlightedText(bookmark.searchSnippet, bookmark.searchHighlights)}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       )}

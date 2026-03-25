@@ -5,12 +5,16 @@
 // but the network request fires only after 350ms of inactivity.
 // ─────────────────────────────────────────────────────────────────────────────
 import { create } from 'zustand';
-import { apiSearchBookmarks, type SearchParams, type SearchResponse } from '../api/search.api.js';
-import type { BookmarkItem } from '../api/bookmarks.api.js';
+import {
+  apiSearchBookmarks,
+  type SearchParams,
+  type SearchResponse,
+  type SearchBookmarkItem,
+} from '../api/search.api.js';
 
 interface SearchState {
   query: string;
-  results: BookmarkItem[];
+  results: SearchBookmarkItem[];
   total: number;
   isSearching: boolean;
   error: string | null;
@@ -25,6 +29,7 @@ interface SearchState {
 export const useSearchStore = create<SearchState>((set, get) => {
   // Private to this store closure — avoids module-scope global leaking across HMR reloads.
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let latestRequestId = 0;
 
   return {
     query: '',
@@ -67,11 +72,17 @@ export const useSearchStore = create<SearchState>((set, get) => {
     },
 
     runSearch: async (params) => {
+      latestRequestId += 1;
+      const requestId = latestRequestId;
+
       set({ isSearching: true, error: null });
       try {
         const data: SearchResponse = await apiSearchBookmarks(params);
+        if (requestId !== latestRequestId) return;
+
         set({ results: data.bookmarks, total: data.total, isSearching: false });
       } catch (err) {
+        if (requestId !== latestRequestId) return;
         const message = err instanceof Error ? err.message : 'Search failed';
         set({ error: message, isSearching: false });
       }

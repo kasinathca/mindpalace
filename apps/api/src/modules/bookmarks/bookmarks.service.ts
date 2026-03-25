@@ -4,6 +4,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { AppError } from '../../middleware/errorHandler.middleware.js';
 import { HTTP } from '../../config/constants.js';
+import { cacheDel } from '../../lib/cache.js';
 import { metadataQueue, archiveQueue, linkHealthQueue } from '../../workers/queues.js';
 import type {
   CreateBookmarkInput,
@@ -86,6 +87,14 @@ const BOOKMARK_INCLUDE = {
     include: { tag: { select: { id: true, name: true, color: true } } },
   },
 } satisfies Prisma.BookmarkInclude;
+
+function collectionCacheKey(userId: string): string {
+  return `collections:${userId}`;
+}
+
+async function invalidateCollectionTreeCache(userId: string): Promise<void> {
+  await cacheDel(collectionCacheKey(userId));
+}
 
 // ── Service methods ───────────────────────────────────────────────────────────
 
@@ -204,6 +213,8 @@ export async function createBookmark(
   // Enqueue permanent copy capture (fire-and-forget)
   await archiveQueue.add('capture', { bookmarkId: bookmark.id, url: bookmark.url });
 
+  await invalidateCollectionTreeCache(userId);
+
   return serialiseBookmark(bookmark);
 }
 
@@ -262,6 +273,10 @@ export async function updateBookmark(
     include: BOOKMARK_INCLUDE,
   });
 
+  if (input.collectionId !== undefined) {
+    await invalidateCollectionTreeCache(userId);
+  }
+
   return serialiseBookmark(updated);
 }
 
@@ -271,12 +286,16 @@ export async function deleteBookmark(userId: string, bookmarkId: string): Promis
     throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
   }
   await prisma.bookmark.delete({ where: { id: bookmarkId } });
+  await invalidateCollectionTreeCache(userId);
 }
 
 export async function batchDeleteBookmarks(userId: string, ids: string[]): Promise<number> {
   const result = await prisma.bookmark.deleteMany({
     where: { id: { in: ids }, userId },
   });
+  if (result.count > 0) {
+    await invalidateCollectionTreeCache(userId);
+  }
   return result.count;
 }
 
@@ -286,6 +305,9 @@ export async function batchMoveBookmarks(userId: string, input: BatchMoveInput):
     where: { id: { in: input.ids }, userId },
     data: { collectionId: input.collectionId },
   });
+  if (result.count > 0) {
+    await invalidateCollectionTreeCache(userId);
+  }
   return result.count;
 }
 
@@ -424,6 +446,10 @@ export async function importBookmarks(
     }
   }
 
+  if (imported > 0) {
+    await invalidateCollectionTreeCache(userId);
+  }
+
   return { imported, skipped, errors };
 }
 
@@ -512,10 +538,19 @@ export async function exportBookmarks(
 export interface PermanentCopyResult {
   id: string;
   bookmarkId: string;
+  rawHtml: string | null;
   articleContent: string | null;
+  sourceUrl: string | null;
   sizeBytes: number | null;
   capturedAt: string;
   failureReason: string | null;
+  mimeType: string;
+}
+
+export interface PermanentCopyVersionSummary {
+  id: string;
+  capturedAt: string;
+  sizeBytes: number | null;
   mimeType: string;
 }
 
@@ -529,6 +564,25 @@ export async function getPermanentCopy(
     throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
   }
 
+  const version = await prisma.permanentCopyVersion.findFirst({
+    where: { bookmarkId },
+    orderBy: { capturedAt: 'desc' },
+  });
+
+  if (version) {
+    return {
+      id: version.id,
+      bookmarkId,
+      rawHtml: version.rawHtml,
+      articleContent: version.articleContent,
+      sourceUrl: version.sourceUrl ?? bookmark.url,
+      sizeBytes: version.sizeBytes,
+      capturedAt: version.capturedAt.toISOString(),
+      failureReason: null,
+      mimeType: version.mimeType,
+    };
+  }
+
   const copy = await prisma.permanentCopy.findUnique({ where: { bookmarkId } });
   if (!copy) {
     throw new AppError(HTTP.NOT_FOUND, 'No permanent copy available yet.');
@@ -537,12 +591,86 @@ export async function getPermanentCopy(
   return {
     id: copy.id,
     bookmarkId: copy.bookmarkId,
+    rawHtml: copy.rawHtml,
     articleContent: copy.articleContent,
+    sourceUrl: bookmark.url,
     sizeBytes: copy.sizeBytes,
     capturedAt: copy.capturedAt.toISOString(),
     failureReason: copy.failureReason,
     mimeType: copy.mimeType,
   };
+}
+
+export async function listPermanentCopyVersions(
+  userId: string,
+  bookmarkId: string,
+): Promise<PermanentCopyVersionSummary[]> {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId } });
+  if (!bookmark || bookmark.userId !== userId) {
+    throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
+  }
+
+  const versions = await prisma.permanentCopyVersion.findMany({
+    where: { bookmarkId },
+    orderBy: { capturedAt: 'desc' },
+    take: 3,
+    select: {
+      id: true,
+      capturedAt: true,
+      sizeBytes: true,
+      mimeType: true,
+    },
+  });
+
+  return versions.map((v) => ({
+    id: v.id,
+    capturedAt: v.capturedAt.toISOString(),
+    sizeBytes: v.sizeBytes,
+    mimeType: v.mimeType,
+  }));
+}
+
+export async function getPermanentCopyVersion(
+  userId: string,
+  bookmarkId: string,
+  versionId: string,
+): Promise<PermanentCopyResult> {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId } });
+  if (!bookmark || bookmark.userId !== userId) {
+    throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
+  }
+
+  const version = await prisma.permanentCopyVersion.findFirst({
+    where: { id: versionId, bookmarkId },
+  });
+  if (!version) {
+    throw new AppError(HTTP.NOT_FOUND, 'Archive version not found.');
+  }
+
+  return {
+    id: version.id,
+    bookmarkId,
+    rawHtml: version.rawHtml,
+    articleContent: version.articleContent,
+    sourceUrl: version.sourceUrl ?? bookmark.url,
+    sizeBytes: version.sizeBytes,
+    capturedAt: version.capturedAt.toISOString(),
+    failureReason: null,
+    mimeType: version.mimeType,
+  };
+}
+
+export async function refreshPermanentCopy(
+  userId: string,
+  bookmarkId: string,
+): Promise<{ queued: true }> {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId } });
+  if (!bookmark || bookmark.userId !== userId) {
+    throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
+  }
+
+  await archiveQueue.add('capture', { bookmarkId, url: bookmark.url });
+  return { queued: true };
 }
 
 // ── Manual link health check ──────────────────────────────────────────────────
@@ -556,6 +684,19 @@ export async function checkBookmarkLink(
     throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
   }
   await linkHealthQueue.add('check', { bookmarkId, url: bookmark.url });
+  return { queued: true };
+}
+
+export async function refreshBookmarkMetadata(
+  userId: string,
+  bookmarkId: string,
+): Promise<{ queued: true }> {
+  const bookmark = await prisma.bookmark.findUnique({ where: { id: bookmarkId } });
+  if (!bookmark || bookmark.userId !== userId) {
+    throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
+  }
+
+  await metadataQueue.add('extract', { bookmarkId, url: bookmark.url });
   return { queued: true };
 }
 

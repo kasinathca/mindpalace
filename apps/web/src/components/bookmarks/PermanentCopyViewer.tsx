@@ -10,7 +10,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   apiGetPermanentCopy,
+  apiGetPermanentCopyVersion,
+  apiListPermanentCopyVersions,
+  apiRefreshPermanentCopy,
   apiCheckLink,
+  type PermanentCopyVersionSummary,
   type PermanentCopyItem,
 } from '../../api/bookmarks.api.js';
 import { Button } from '../ui/button.js';
@@ -34,13 +38,23 @@ export function PermanentCopyViewer({
   isOpen = true,
 }: PermanentCopyViewerProps): React.JSX.Element {
   const [state, setState] = useState<ViewState>({ status: 'idle' });
+  const [versions, setVersions] = useState<PermanentCopyVersionSummary[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [isRefreshingArchive, setIsRefreshingArchive] = useState(false);
+  const [archiveMsg, setArchiveMsg] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'snapshot' | 'reader'>('snapshot');
   const [checking, setChecking] = useState(false);
   const [checkMsg, setCheckMsg] = useState<string | null>(null);
 
   const loadCopy = useCallback(async () => {
     setState({ status: 'loading' });
     try {
-      const copy = await apiGetPermanentCopy(bookmark.id);
+      const [copy, recentVersions] = await Promise.all([
+        apiGetPermanentCopy(bookmark.id),
+        apiListPermanentCopyVersions(bookmark.id),
+      ]);
+      setVersions(recentVersions);
+      setSelectedVersionId(copy.id);
       if (copy.failureReason) {
         setState({ status: 'failed', reason: copy.failureReason });
       } else {
@@ -59,6 +73,32 @@ export function PermanentCopyViewer({
     }
   }, [bookmark.id]);
 
+  const loadSelectedVersion = useCallback(
+    async (versionId: string) => {
+      setState({ status: 'loading' });
+      try {
+        const copy = await apiGetPermanentCopyVersion(bookmark.id, versionId);
+        setSelectedVersionId(versionId);
+        if (copy.failureReason) {
+          setState({ status: 'failed', reason: copy.failureReason });
+        } else {
+          setState({ status: 'ready', copy });
+        }
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          setState({ status: 'not-found' });
+        } else {
+          setState({
+            status: 'failed',
+            reason: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+    },
+    [bookmark.id],
+  );
+
   useEffect(() => {
     if (isOpen && state.status === 'idle') {
       void loadCopy();
@@ -76,6 +116,61 @@ export function PermanentCopyViewer({
     } finally {
       setChecking(false);
     }
+  }
+
+  async function handleRefreshArchive(): Promise<void> {
+    setIsRefreshingArchive(true);
+    setArchiveMsg(null);
+    const baselineCapturedAt =
+      state.status === 'ready' ? state.copy.capturedAt : (versions[0]?.capturedAt ?? null);
+
+    try {
+      await apiRefreshPermanentCopy(bookmark.id);
+
+      let delayMs = 2_000;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const [latest, recentVersions] = await Promise.all([
+          apiGetPermanentCopy(bookmark.id),
+          apiListPermanentCopyVersions(bookmark.id),
+        ]);
+
+        const changed = baselineCapturedAt === null || latest.capturedAt !== baselineCapturedAt;
+        if (changed) {
+          setVersions(recentVersions);
+          setSelectedVersionId(latest.id);
+          setState({ status: 'ready', copy: latest });
+          setArchiveMsg('Archive refreshed successfully.');
+          return;
+        }
+
+        delayMs *= 2;
+      }
+
+      setArchiveMsg('Archive refresh queued. New snapshot may appear shortly due to rate limits.');
+    } catch (err) {
+      setArchiveMsg(err instanceof Error ? err.message : 'Failed to refresh archive.');
+    } finally {
+      setIsRefreshingArchive(false);
+    }
+  }
+
+  function renderSnapshotHtml(copy: PermanentCopyItem): string {
+    if (!copy.rawHtml) {
+      return '';
+    }
+
+    const withoutCspMeta = copy.rawHtml.replace(
+      /<meta[^>]+http-equiv=["']content-security-policy["'][^>]*>/gi,
+      '',
+    );
+
+    const baseHref = (copy.sourceUrl ?? bookmark.url).replace(/"/g, '&quot;');
+    if (withoutCspMeta.toLowerCase().includes('<head')) {
+      return withoutCspMeta.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`);
+    }
+
+    return `<!doctype html><html><head><base href="${baseHref}"></head><body>${withoutCspMeta}</body></html>`;
   }
 
   function handleRetryCapture(): void {
@@ -140,6 +235,14 @@ export function PermanentCopyViewer({
         <Button variant="outline" size="sm" onClick={() => void loadCopy()}>
           Refresh
         </Button>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => void handleRefreshArchive()}
+          disabled={isRefreshingArchive}
+        >
+          {isRefreshingArchive ? 'Refreshing archive…' : 'Refresh Archive'}
+        </Button>
       </div>
     );
   }
@@ -170,6 +273,14 @@ export function PermanentCopyViewer({
         <Button variant="outline" size="sm" onClick={() => void handleRetryCapture()}>
           Retry
         </Button>
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => void handleRefreshArchive()}
+          disabled={isRefreshingArchive}
+        >
+          {isRefreshingArchive ? 'Refreshing archive…' : 'Refresh Archive'}
+        </Button>
       </div>
     );
   }
@@ -187,6 +298,16 @@ export function PermanentCopyViewer({
         </span>
         <div className="flex items-center gap-2">
           {checkMsg && <span className="text-primary">{checkMsg}</span>}
+          {archiveMsg && <span className="text-primary">{archiveMsg}</span>}
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => void handleRefreshArchive()}
+            disabled={isRefreshingArchive}
+          >
+            {isRefreshingArchive ? 'Refreshing archive…' : 'Refresh Archive'}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -199,8 +320,70 @@ export function PermanentCopyViewer({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <label htmlFor="archive-version" className="text-muted-foreground">
+          Archive version
+        </label>
+        <select
+          id="archive-version"
+          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+          value={selectedVersionId ?? ''}
+          onChange={(e) => {
+            const nextId = e.target.value;
+            if (!nextId) return;
+            void loadSelectedVersion(nextId);
+          }}
+          disabled={versions.length === 0}
+        >
+          {versions.length === 0 ? (
+            <option value="">Current</option>
+          ) : (
+            versions.map((v, idx) => (
+              <option key={v.id} value={v.id}>
+                {idx === 0 ? 'Latest' : `Archive ${idx + 1}`} ·{' '}
+                {new Date(v.capturedAt).toLocaleString()}
+              </option>
+            ))
+          )}
+        </select>
+
+        <div className="ml-auto inline-flex items-center gap-1 rounded-md border border-border p-1">
+          <Button
+            type="button"
+            variant={viewMode === 'snapshot' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setViewMode('snapshot')}
+          >
+            Snapshot
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === 'reader' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setViewMode('reader')}
+          >
+            Reader
+          </Button>
+        </div>
+      </div>
+
       {/* Article content */}
-      {copy.articleContent ? (
+      {viewMode === 'snapshot' ? (
+        copy.rawHtml ? (
+          <iframe
+            title="Saved page snapshot"
+            className="h-[70vh] w-full rounded-lg border border-border bg-white"
+            sandbox="allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts"
+            srcDoc={renderSnapshotHtml(copy)}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No full HTML snapshot is available for this archive yet.
+          </p>
+        )
+      ) : copy.articleContent ? (
         <article
           className="prose prose-sm dark:prose-invert max-w-none rounded-lg border border-border bg-card p-6"
           // Sanitized by DOMPurify on the server before storage

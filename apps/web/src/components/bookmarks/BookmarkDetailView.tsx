@@ -12,6 +12,7 @@ import { EditBookmarkModal } from './EditBookmarkModal.js';
 import { PermanentCopyViewer } from './PermanentCopyViewer.js';
 import { Button } from '../ui/button.js';
 import { apiCreateAnnotation, type AnnotationItem } from '../../api/annotations.api.js';
+import { apiGetBookmark, apiRefreshBookmarkMetadata } from '../../api/bookmarks.api.js';
 import type { BookmarkItem } from '../../api/bookmarks.api.js';
 
 interface BookmarkDetailViewProps {
@@ -34,6 +35,8 @@ export function BookmarkDetailView({
   const [addingNote, setAddingNote] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'annotations' | 'saved-copy'>('annotations');
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = useState(false);
+  const [metadataMessage, setMetadataMessage] = useState<string | null>(null);
 
   const domain = (() => {
     try {
@@ -61,10 +64,66 @@ export function BookmarkDetailView({
     }
   }
 
+  async function handleRefreshMetadata(): Promise<void> {
+    setIsRefreshingMetadata(true);
+    setMetadataMessage(null);
+
+    const baseline = {
+      title: bookmark.title,
+      description: bookmark.description,
+      faviconUrl: bookmark.faviconUrl,
+      coverImageUrl: bookmark.coverImageUrl,
+      updatedAt: bookmark.updatedAt,
+    };
+
+    try {
+      await apiRefreshBookmarkMetadata(bookmark.id);
+
+      let delayMs = 1_500;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const latest = await apiGetBookmark(bookmark.id);
+
+        const changed =
+          latest.title !== baseline.title ||
+          latest.description !== baseline.description ||
+          latest.faviconUrl !== baseline.faviconUrl ||
+          latest.coverImageUrl !== baseline.coverImageUrl ||
+          latest.updatedAt !== baseline.updatedAt;
+
+        if (changed) {
+          onBookmarkUpdated?.(latest);
+          setMetadataMessage('Metadata refreshed successfully.');
+          return;
+        }
+
+        delayMs *= 2;
+      }
+
+      setMetadataMessage('Refresh queued. Metadata may update shortly due to rate limits.');
+    } catch (err) {
+      setMetadataMessage(err instanceof Error ? err.message : 'Failed to refresh metadata.');
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* ── Metadata card ──────────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleRefreshMetadata()}
+            disabled={isRefreshingMetadata}
+          >
+            {isRefreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
+          </Button>
+        </div>
+
         {/* Cover image */}
         {bookmark.coverImageUrl && (
           <img
@@ -133,6 +192,12 @@ export function BookmarkDetailView({
           {bookmark.readAt && <span>Read {new Date(bookmark.readAt).toLocaleDateString()}</span>}
           {bookmark.isPinned && <span className="text-primary">Pinned</span>}
         </div>
+
+        {metadataMessage && (
+          <p className="mt-3 text-xs text-muted-foreground" role="status" aria-live="polite">
+            {metadataMessage}
+          </p>
+        )}
 
         {/* Personal notes */}
         {bookmark.notes && (

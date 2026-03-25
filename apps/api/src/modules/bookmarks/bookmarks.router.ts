@@ -75,8 +75,23 @@ bookmarksRouter.get('/:id', BookmarksController.get);
 // GET  /api/v1/bookmarks/:id/permanent-copy — permanent copy for a bookmark
 bookmarksRouter.get('/:id/permanent-copy', BookmarksController.getPermanentCopy);
 
+// GET  /api/v1/bookmarks/:id/permanent-copy/versions — recent archive versions (max 3)
+bookmarksRouter.get('/:id/permanent-copy/versions', BookmarksController.listPermanentCopyVersions);
+
+// GET  /api/v1/bookmarks/:id/permanent-copy/versions/:versionId — specific archived snapshot
+bookmarksRouter.get(
+  '/:id/permanent-copy/versions/:versionId',
+  BookmarksController.getPermanentCopyVersion,
+);
+
+// POST /api/v1/bookmarks/:id/permanent-copy/refresh — capture a new archive snapshot
+bookmarksRouter.post('/:id/permanent-copy/refresh', BookmarksController.refreshPermanentCopy);
+
 // POST /api/v1/bookmarks/:id/check — manually trigger a link health check
 bookmarksRouter.post('/:id/check', BookmarksController.checkLink);
+
+// POST /api/v1/bookmarks/:id/refresh-metadata — manually re-run metadata extraction
+bookmarksRouter.post('/:id/refresh-metadata', BookmarksController.refreshMetadata);
 
 // POST /api/v1/bookmarks         — create bookmark (enqueues metadata job)
 // bookmarkCreateLimiter is applied AFTER jwtAuthGuard so req.user.id is available

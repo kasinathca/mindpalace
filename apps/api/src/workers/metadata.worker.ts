@@ -13,10 +13,26 @@
 import { Worker, type Job } from 'bullmq';
 import * as cheerio from 'cheerio';
 import got from 'got';
+import { createHash } from 'node:crypto';
 import { env } from '../config/env.js';
+import { cacheGet, cacheSet } from '../lib/cache.js';
 import { updateBookmarkMetadata } from '../modules/bookmarks/bookmarks.service.js';
 import { logger } from '../lib/logger.js';
 import type { MetadataJobData } from './queues.js';
+
+const METADATA_FETCH_TIMEOUT_MS = 10_000;
+const METADATA_MIN_HOST_INTERVAL_MS = 1_500;
+const METADATA_BLOCKED_HOST_COOLDOWN_MS = 60_000;
+const METADATA_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+const hostNextAllowedRequestAt = new Map<string, number>();
+
+class RetryableMetadataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RetryableMetadataError';
+  }
+}
 
 const PRIVATE_HOSTNAME_PATTERNS: RegExp[] = [
   /^localhost$/i,
@@ -34,6 +50,13 @@ const PRIVATE_HOSTNAME_PATTERNS: RegExp[] = [
 
 const METADATA_HOSTNAMES = ['169.254.169.254', '[fd00:ec2::254]', 'metadata.google.internal'];
 
+const BLOCKED_RESPONSE_PATTERNS: RegExp[] = [
+  /our systems have detected unusual traffic/i,
+  /to continue, please type the characters below/i,
+  /automated queries/i,
+  /unusual traffic from your computer network/i,
+];
+
 function assertSafeOutboundUrl(url: string): void {
   let hostname: string;
   try {
@@ -48,6 +71,53 @@ function assertSafeOutboundUrl(url: string): void {
   ) {
     throw new Error(`SSRF guard: requests to "${hostname}" are not permitted`);
   }
+}
+
+function isRetryableHttpStatus(statusCode: number): boolean {
+  return statusCode === 408 || statusCode === 425 || statusCode === 429 || statusCode >= 500;
+}
+
+function isAntiBotChallengePage(url: string, body: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('google.com/sorry')) {
+    return true;
+  }
+
+  return BLOCKED_RESPONSE_PATTERNS.some((pattern) => pattern.test(body));
+}
+
+async function waitForHostSlot(hostname: string): Promise<void> {
+  const now = Date.now();
+  const waitUntil = hostNextAllowedRequestAt.get(hostname) ?? 0;
+  const waitMs = Math.max(0, waitUntil - now);
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+
+  hostNextAllowedRequestAt.set(hostname, Date.now() + METADATA_MIN_HOST_INTERVAL_MS);
+}
+
+function applyBlockedHostCooldown(hostname: string): void {
+  const existing = hostNextAllowedRequestAt.get(hostname) ?? 0;
+  const nextAllowed = Math.max(existing, Date.now() + METADATA_BLOCKED_HOST_COOLDOWN_MS);
+  hostNextAllowedRequestAt.set(hostname, nextAllowed);
+}
+
+function metadataCacheKey(url: string): string {
+  const parsed = new URL(url);
+  parsed.hash = '';
+
+  const hash = createHash('sha256').update(parsed.toString()).digest('hex');
+  return `metadata:url:${hash}`;
+}
+
+function hasMeaningfulMetadata(metadata: ExtractedMetadata): boolean {
+  return (
+    (typeof metadata.title === 'string' && metadata.title.trim().length > 0) ||
+    (typeof metadata.description === 'string' && metadata.description.trim().length > 0) ||
+    (typeof metadata.faviconUrl === 'string' && metadata.faviconUrl.trim().length > 0) ||
+    (typeof metadata.coverImageUrl === 'string' && metadata.coverImageUrl.trim().length > 0)
+  );
 }
 
 function redisConnectionOptions(): {
@@ -74,6 +144,90 @@ interface ExtractedMetadata {
   description?: string | undefined;
   faviconUrl?: string | undefined;
   coverImageUrl?: string | undefined;
+}
+
+interface YouTubeOEmbedResponse {
+  title?: string;
+  author_name?: string;
+  thumbnail_url?: string;
+}
+
+function isYouTubeHostname(hostname: string): boolean {
+  return hostname === 'youtu.be' || hostname.endsWith('.youtube.com') || hostname === 'youtube.com';
+}
+
+function extractYouTubeVideoId(url: URL): string | undefined {
+  const host = url.hostname.toLowerCase();
+  if (host === 'youtu.be') {
+    const firstPath = url.pathname.split('/').filter(Boolean)[0];
+    return firstPath || undefined;
+  }
+
+  const watchId = url.searchParams.get('v');
+  if (watchId) {
+    return watchId;
+  }
+
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts.length >= 2 && (parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'live')) {
+    return parts[1];
+  }
+
+  return undefined;
+}
+
+async function extractYouTubeMetadata(targetUrl: string): Promise<ExtractedMetadata> {
+  const parsed = new URL(targetUrl);
+  const videoId = extractYouTubeVideoId(parsed);
+  const fallbackCover = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined;
+  const fallbackMetadata: ExtractedMetadata = {
+    faviconUrl: 'https://www.youtube.com/favicon.ico',
+    ...(fallbackCover ? { coverImageUrl: fallbackCover } : {}),
+  };
+
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(targetUrl)}&format=json`;
+  const response = await got(oembedUrl, {
+    timeout: { request: METADATA_FETCH_TIMEOUT_MS },
+    followRedirect: true,
+    maxRedirects: 3,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; MindPalaceBot/1.0; +https://mindpalace.app)',
+      Accept: 'application/json',
+    },
+    throwHttpErrors: false,
+  });
+
+  if (isRetryableHttpStatus(response.statusCode)) {
+    throw new RetryableMetadataError(
+      `Retryable YouTube oEmbed status ${response.statusCode} for ${targetUrl}`,
+    );
+  }
+
+  if (isAntiBotChallengePage(response.url ?? oembedUrl, response.body)) {
+    throw new RetryableMetadataError(`YouTube anti-bot challenge detected for ${targetUrl}`);
+  }
+
+  if (response.statusCode >= 400) {
+    return fallbackMetadata;
+  }
+
+  let payload: YouTubeOEmbedResponse;
+  try {
+    payload = JSON.parse(response.body) as YouTubeOEmbedResponse;
+  } catch {
+    return fallbackMetadata;
+  }
+
+  return {
+    ...(payload.title ? { title: payload.title } : {}),
+    ...(payload.author_name ? { description: `By ${payload.author_name}` } : {}),
+    faviconUrl: 'https://www.youtube.com/favicon.ico',
+    ...(payload.thumbnail_url
+      ? { coverImageUrl: payload.thumbnail_url }
+      : fallbackCover
+        ? { coverImageUrl: fallbackCover }
+        : {}),
+  };
 }
 
 function extractMetadata(html: string, baseUrl: string): ExtractedMetadata {
@@ -129,6 +283,8 @@ export function createMetadataWorker(): Worker<MetadataJobData> {
     'metadata',
     async (job: Job<MetadataJobData>) => {
       const { bookmarkId, url } = job.data;
+      const hostname = new URL(url).hostname.toLowerCase();
+      const cacheKey = metadataCacheKey(url);
 
       try {
         assertSafeOutboundUrl(url);
@@ -142,10 +298,45 @@ export function createMetadataWorker(): Worker<MetadataJobData> {
 
       logger.info({ bookmarkId, url }, 'metadata.worker: starting extraction');
 
+      const cached = await cacheGet<ExtractedMetadata>(cacheKey);
+      if (cached && hasMeaningfulMetadata(cached)) {
+        await updateBookmarkMetadata(bookmarkId, cached);
+        logger.info({ bookmarkId }, 'metadata.worker: extraction complete (cache hit)');
+        return;
+      }
+
+      await waitForHostSlot(hostname);
+
+      if (isYouTubeHostname(hostname)) {
+        try {
+          const metadata = await extractYouTubeMetadata(url);
+          await updateBookmarkMetadata(bookmarkId, metadata);
+          if (hasMeaningfulMetadata(metadata)) {
+            await cacheSet(cacheKey, metadata, METADATA_CACHE_TTL_SECONDS);
+          }
+          logger.info({ bookmarkId }, 'metadata.worker: extraction complete (youtube oembed)');
+          return;
+        } catch (fetchError) {
+          if (fetchError instanceof RetryableMetadataError) {
+            applyBlockedHostCooldown(hostname);
+            logger.warn(
+              { bookmarkId, url, attemptsMade: job.attemptsMade, err: fetchError },
+              'metadata.worker: retryable youtube metadata failure, deferring to queue backoff',
+            );
+            throw fetchError;
+          }
+
+          logger.warn(
+            { bookmarkId, url, err: fetchError },
+            'metadata.worker: youtube metadata fetch failed, falling back to generic extraction',
+          );
+        }
+      }
+
       let html: string;
       try {
         const response = await got(url, {
-          timeout: { request: 10_000 },
+          timeout: { request: METADATA_FETCH_TIMEOUT_MS },
           followRedirect: true,
           maxRedirects: 5,
           headers: {
@@ -154,20 +345,44 @@ export function createMetadataWorker(): Worker<MetadataJobData> {
           },
           throwHttpErrors: false,
         });
+
+        if (isRetryableHttpStatus(response.statusCode)) {
+          applyBlockedHostCooldown(hostname);
+          throw new RetryableMetadataError(
+            `Retryable metadata fetch status ${response.statusCode} for ${url}`,
+          );
+        }
+
+        if (isAntiBotChallengePage(response.url ?? url, response.body)) {
+          applyBlockedHostCooldown(hostname);
+          throw new RetryableMetadataError(`Anti-bot challenge detected for ${url}`);
+        }
+
         html = response.body;
       } catch (fetchError) {
+        if (fetchError instanceof RetryableMetadataError) {
+          logger.warn(
+            { bookmarkId, url, attemptsMade: job.attemptsMade, err: fetchError },
+            'metadata.worker: retryable fetch failure, deferring to queue backoff',
+          );
+          throw fetchError;
+        }
+
         logger.warn({ bookmarkId, url, err: fetchError }, 'metadata.worker: fetch failed');
         return; // Don't fail the job; missing metadata is acceptable
       }
 
       const metadata = extractMetadata(html, url);
       await updateBookmarkMetadata(bookmarkId, metadata);
+      if (hasMeaningfulMetadata(metadata)) {
+        await cacheSet(cacheKey, metadata, METADATA_CACHE_TTL_SECONDS);
+      }
 
       logger.info({ bookmarkId }, 'metadata.worker: extraction complete');
     },
     {
       connection: redisConnectionOptions(),
-      concurrency: 5, // Process 5 URLs simultaneously
+      concurrency: 2, // Reduce burst traffic to avoid remote anti-bot throttling
     },
   );
 

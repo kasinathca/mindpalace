@@ -129,10 +129,19 @@ export async function apiBatchTagBookmarks(
 export interface PermanentCopyItem {
   id: string;
   bookmarkId: string;
+  rawHtml: string | null;
   articleContent: string | null;
+  sourceUrl: string | null;
   sizeBytes: number | null;
   capturedAt: string;
   failureReason: string | null;
+  mimeType: string;
+}
+
+export interface PermanentCopyVersionSummary {
+  id: string;
+  capturedAt: string;
+  sizeBytes: number | null;
   mimeType: string;
 }
 
@@ -143,9 +152,42 @@ export async function apiGetPermanentCopy(bookmarkId: string): Promise<Permanent
   return res.data.data;
 }
 
+export async function apiListPermanentCopyVersions(
+  bookmarkId: string,
+): Promise<PermanentCopyVersionSummary[]> {
+  const res = await apiClient.get<ApiSuccessResponse<PermanentCopyVersionSummary[]>>(
+    `/api/v1/bookmarks/${bookmarkId}/permanent-copy/versions`,
+  );
+  return res.data.data;
+}
+
+export async function apiGetPermanentCopyVersion(
+  bookmarkId: string,
+  versionId: string,
+): Promise<PermanentCopyItem> {
+  const res = await apiClient.get<ApiSuccessResponse<PermanentCopyItem>>(
+    `/api/v1/bookmarks/${bookmarkId}/permanent-copy/versions/${versionId}`,
+  );
+  return res.data.data;
+}
+
+export async function apiRefreshPermanentCopy(bookmarkId: string): Promise<{ queued: true }> {
+  const res = await apiClient.post<ApiSuccessResponse<{ queued: true }>>(
+    `/api/v1/bookmarks/${bookmarkId}/permanent-copy/refresh`,
+  );
+  return res.data.data;
+}
+
 export async function apiCheckLink(bookmarkId: string): Promise<{ queued: true }> {
   const res = await apiClient.post<ApiSuccessResponse<{ queued: true }>>(
     `/api/v1/bookmarks/${bookmarkId}/check`,
+  );
+  return res.data.data;
+}
+
+export async function apiRefreshBookmarkMetadata(bookmarkId: string): Promise<{ queued: true }> {
+  const res = await apiClient.post<ApiSuccessResponse<{ queued: true }>>(
+    `/api/v1/bookmarks/${bookmarkId}/refresh-metadata`,
   );
   return res.data.data;
 }

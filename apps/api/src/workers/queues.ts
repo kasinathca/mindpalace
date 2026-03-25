@@ -48,10 +48,10 @@ export interface MetadataJobData {
 export const metadataQueue = new Queue<MetadataJobData>('metadata', {
   connection,
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 5,
     backoff: {
       type: 'exponential',
-      delay: 2000,
+      delay: 15000,
     },
     removeOnComplete: { count: 100 },
     removeOnFail: { count: 200 },

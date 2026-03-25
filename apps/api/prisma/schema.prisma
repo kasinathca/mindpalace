@@ -162,6 +162,7 @@ model Bookmark {
   // Relations
   tags          BookmarkTag[]
   permanentCopy PermanentCopy?
+  archiveVersions PermanentCopyVersion[]
 
   @@index([userId])
   @@index([collectionId])
@@ -235,6 +236,23 @@ model PermanentCopy {
   annotations Annotation[]
 
   @@map("permanent_copies")
+}
+
+model PermanentCopyVersion {
+  id             String   @id @default(cuid())
+  rawHtml        String?
+  articleContent String?
+  sourceUrl      String?
+  mimeType       String   @default("text/html")
+  sizeBytes      Int?
+  capturedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  bookmarkId String
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+
+  @@index([bookmarkId, capturedAt(sort: Desc)])
+  @@map("permanent_copy_versions")
 }
 
 // ─── Annotation ──────────────────────────────────────────────────────────────

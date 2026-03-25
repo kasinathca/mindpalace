@@ -17,6 +17,7 @@ import {
   type UpdateBookmarkParams,
 } from '../api/bookmarks.api.js';
 import type { BookmarkFilters } from '@mindpalace/shared';
+import { useCollectionsStore } from './collectionsStore.js';
 
 interface PaginationState {
   total: number;
@@ -163,6 +164,8 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
 
       scheduleMetadataRefresh(0, INITIAL_METADATA_DELAY_MS);
 
+      void useCollectionsStore.getState().fetchTree();
+
       return created;
     } catch (err: unknown) {
       // Roll back optimistic update
@@ -188,6 +191,9 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
       set((state) => ({
         bookmarks: state.bookmarks.map((b) => (b.id === id ? updated : b)),
       }));
+      if (input.collectionId !== undefined) {
+        void useCollectionsStore.getState().fetchTree();
+      }
     } catch (err: unknown) {
       // Roll back
       if (previous) {
@@ -211,6 +217,7 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
 
     try {
       await apiDeleteBookmark(id);
+      void useCollectionsStore.getState().fetchTree();
     } catch (err: unknown) {
       set({
         bookmarks: previous,
@@ -233,6 +240,7 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
 
     try {
       await apiBatchDeleteBookmarks(ids);
+      void useCollectionsStore.getState().fetchTree();
     } catch (err: unknown) {
       set({
         bookmarks: previous,

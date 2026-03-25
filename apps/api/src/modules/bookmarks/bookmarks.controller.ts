@@ -201,12 +201,93 @@ export async function getPermanentCopy(
 }
 
 /**
+ * GET /api/v1/bookmarks/:id/permanent-copy/versions
+ * Lists recent archive versions (max 3).
+ */
+export async function listPermanentCopyVersions(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const versions = await BookmarksService.listPermanentCopyVersions(
+      req.user!.id,
+      req.params['id'] as string,
+    );
+    res.status(HTTP.OK).json({ success: true, data: versions });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/v1/bookmarks/:id/permanent-copy/versions/:versionId
+ * Returns a specific archive version snapshot.
+ */
+export async function getPermanentCopyVersion(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const copy = await BookmarksService.getPermanentCopyVersion(
+      req.user!.id,
+      req.params['id'] as string,
+      req.params['versionId'] as string,
+    );
+    res.status(HTTP.OK).json({ success: true, data: copy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/bookmarks/:id/permanent-copy/refresh
+ * Enqueues a new archive snapshot capture.
+ */
+export async function refreshPermanentCopy(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await BookmarksService.refreshPermanentCopy(
+      req.user!.id,
+      req.params['id'] as string,
+    );
+    res.status(HTTP.OK).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * POST /api/v1/bookmarks/:id/check
  * Enqueues a manual link health check for the bookmark.
  */
 export async function checkLink(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const result = await BookmarksService.checkBookmarkLink(
+      req.user!.id,
+      req.params['id'] as string,
+    );
+    res.status(HTTP.OK).json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/bookmarks/:id/refresh-metadata
+ * Enqueues metadata extraction for the bookmark.
+ */
+export async function refreshMetadata(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await BookmarksService.refreshBookmarkMetadata(
       req.user!.id,
       req.params['id'] as string,
     );

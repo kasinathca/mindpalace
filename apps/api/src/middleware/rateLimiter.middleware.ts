@@ -7,27 +7,39 @@
 //                       mitigates brute-force and credential-stuffing attacks.
 // ─────────────────────────────────────────────────────────────────────────────
 import rateLimit from 'express-rate-limit';
+import type { RequestHandler } from 'express';
 import { env } from '../config/env.js';
 import { HTTP } from '../config/constants.js';
 
-export const defaultLimiter = rateLimit({
-  windowMs: env.RATE_LIMIT_WINDOW_MS,
-  max: env.RATE_LIMIT_MAX_REQS,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: 'Too many requests, please try again later.' },
-  statusCode: HTTP.TOO_MANY_REQUESTS,
-});
+const passThroughLimiter: RequestHandler = (_req, _res, next) => next();
 
-export const authLimiter = rateLimit({
-  windowMs: env.RATE_LIMIT_WINDOW_MS,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: 'Too many authentication attempts, please try again later.' },
-  statusCode: HTTP.TOO_MANY_REQUESTS,
-  skipSuccessfulRequests: true,
-});
+export const defaultLimiter: RequestHandler =
+  env.NODE_ENV === 'development'
+    ? passThroughLimiter
+    : rateLimit({
+        windowMs: env.RATE_LIMIT_WINDOW_MS,
+        max: env.RATE_LIMIT_MAX_REQS,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { success: false, error: 'Too many requests, please try again later.' },
+        statusCode: HTTP.TOO_MANY_REQUESTS,
+      });
+
+export const authLimiter: RequestHandler =
+  env.NODE_ENV === 'development'
+    ? passThroughLimiter
+    : rateLimit({
+        windowMs: env.RATE_LIMIT_WINDOW_MS,
+        max: 20,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: {
+          success: false,
+          error: 'Too many authentication attempts, please try again later.',
+        },
+        statusCode: HTTP.TOO_MANY_REQUESTS,
+        skipSuccessfulRequests: true,
+      });
 
 /**
  * Per-user bookmark creation limiter: 30 bookmarks per RATE_LIMIT_WINDOW_MS.

@@ -24,7 +24,7 @@ export function BatchActionBar({
   onClearSelection,
 }: BatchActionBarProps): React.JSX.Element | null {
   const { fetchBookmarks } = useBookmarksStore();
-  const { tree } = useCollectionsStore();
+  const { tree, fetchTree } = useCollectionsStore();
   const { tags } = useTagsStore();
 
   // Flatten collection tree for the move menu
@@ -51,6 +51,7 @@ export function BatchActionBar({
     try {
       await apiBatchDeleteBookmarks(selectedIds);
       await fetchBookmarks({});
+      await fetchTree();
       onClearSelection();
     } finally {
       setIsLoading(false);
@@ -62,6 +63,7 @@ export function BatchActionBar({
     try {
       await apiBatchMoveBookmarks(selectedIds, collectionId);
       await fetchBookmarks({});
+      await fetchTree();
       onClearSelection();
     } finally {
       setIsLoading(false);

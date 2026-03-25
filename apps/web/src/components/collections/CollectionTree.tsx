@@ -10,6 +10,7 @@
 //   • Create child collection (➕ button on hover)
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCollectionsStore } from '../../stores/collectionsStore.js';
 import { cn } from '../../utils/cn.js';
 import type { CollectionNode } from '../../api/collections.api.js';
@@ -41,6 +42,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Element {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const { selectedId, selectCollection } = useCollectionsStore();
   const isSelected = selectedId === node.id;
@@ -56,6 +58,7 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Elem
         style={{ paddingLeft: `${0.5 + depth * 1}rem` }}
         onClick={() => {
           selectCollection(node.id);
+          void navigate('/dashboard');
           if (hasChildren) setExpanded((v) => !v);
         }}
         role="treeitem"
@@ -146,6 +149,7 @@ interface CollectionTreeProps {
 }
 
 export function CollectionTree({ onCreateCollection }: CollectionTreeProps): React.JSX.Element {
+  const navigate = useNavigate();
   const { tree, isLoading, selectedId, selectCollection } = useCollectionsStore();
 
   if (isLoading && tree.length === 0) {
@@ -184,7 +188,10 @@ export function CollectionTree({ onCreateCollection }: CollectionTreeProps): Rea
               ? 'bg-primary/10 text-primary font-medium'
               : 'text-foreground hover:bg-accent',
           )}
-          onClick={() => selectCollection(null)}
+          onClick={() => {
+            selectCollection(null);
+            void navigate('/dashboard');
+          }}
           role="treeitem"
           aria-selected={selectedId === null}
         >

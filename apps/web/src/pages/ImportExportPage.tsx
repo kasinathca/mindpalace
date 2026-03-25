@@ -4,6 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { apiClient } from '../api/client.js';
 import { Button } from '../components/ui/button.js';
+import { useCollectionsStore } from '../stores/collectionsStore.js';
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ interface ImportResult {
 // ── Import section ────────────────────────────────────────────────────────────
 
 function ImportSection(): React.JSX.Element {
+  const fetchTree = useCollectionsStore((s) => s.fetchTree);
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -44,6 +46,7 @@ function ImportSection(): React.JSX.Element {
         { headers: { 'Content-Type': 'multipart/form-data' } },
       );
       setResult(res.data.data);
+      await fetchTree();
       setFile(null);
       if (fileRef.current) fileRef.current.value = '';
     } catch (err: unknown) {

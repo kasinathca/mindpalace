@@ -45,8 +45,12 @@ export function AppShell(): React.JSX.Element {
     void fetchTree();
   }, [fetchTree]);
 
-  // Close the mobile sidebar when clicking a nav link
-  const closeSidebar = (): void => setSidebarOpen(false);
+  // Close the sidebar on nav click only for mobile drawer mode.
+  const closeSidebar = (): void => {
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

@@ -50,15 +50,8 @@ export function createArchiveWorker(): Worker {
         return;
       }
 
-      // If a successful copy already exists, skip
-      const existing = await prisma.permanentCopy.findUnique({ where: { bookmarkId } });
-      if (existing && !existing.failureReason) {
-        logger.info({ bookmarkId }, 'archive: copy already exists, skipping');
-        return;
-      }
-
       try {
-        const { rawHtml, articleContent, sizeBytes } = await archivePage(url);
+        const { rawHtml, articleContent, sizeBytes, mimeType } = await archivePage(url);
 
         await prisma.permanentCopy.upsert({
           where: { bookmarkId },
@@ -67,17 +60,41 @@ export function createArchiveWorker(): Worker {
             rawHtml,
             articleContent,
             sizeBytes,
-            mimeType: 'text/html',
+            mimeType,
           },
           update: {
             rawHtml,
             articleContent,
             sizeBytes,
-            mimeType: 'text/html',
+            mimeType,
             failureReason: null,
             capturedAt: new Date(),
           },
         });
+
+        await prisma.permanentCopyVersion.create({
+          data: {
+            bookmarkId,
+            rawHtml,
+            articleContent,
+            sourceUrl: url,
+            sizeBytes,
+            mimeType,
+            capturedAt: new Date(),
+          },
+        });
+
+        const staleVersions = await prisma.permanentCopyVersion.findMany({
+          where: { bookmarkId },
+          orderBy: { capturedAt: 'desc' },
+          skip: 3,
+          select: { id: true },
+        });
+        if (staleVersions.length > 0) {
+          await prisma.permanentCopyVersion.deleteMany({
+            where: { id: { in: staleVersions.map((v) => v.id) } },
+          });
+        }
 
         logger.info({ bookmarkId, sizeBytes }, 'archive: permanent copy saved');
       } catch (err) {

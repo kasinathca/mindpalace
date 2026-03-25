@@ -6,12 +6,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { apiGetBookmark } from '../api/bookmarks.api.js';
+import { apiGetBookmark, apiRefreshBookmarkMetadata } from '../api/bookmarks.api.js';
 import { apiListAnnotations } from '../api/annotations.api.js';
 import { NoteCard } from '../components/bookmarks/NoteCard.js';
 import { PermanentCopyViewer } from '../components/bookmarks/PermanentCopyViewer.js';
 import { AnnotationToolbar } from '../components/bookmarks/AnnotationToolbar.js';
 import { FullPageSpinner } from '../components/common/LoadingSpinner.js';
+import { Button } from '../components/ui/button.js';
 import type { BookmarkItem } from '../api/bookmarks.api.js';
 import type { AnnotationItem } from '../api/annotations.api.js';
 
@@ -24,6 +25,8 @@ export default function BookmarkDetailPage(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'annotations' | 'saved-copy'>('annotations');
+  const [isRefreshingMetadata, setIsRefreshingMetadata] = useState(false);
+  const [metadataMessage, setMetadataMessage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -43,6 +46,53 @@ export default function BookmarkDetailPage(): React.ReactElement {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  async function handleRefreshMetadata(): Promise<void> {
+    if (!bookmark) return;
+
+    setIsRefreshingMetadata(true);
+    setMetadataMessage(null);
+
+    const baseline = {
+      title: bookmark.title,
+      description: bookmark.description,
+      faviconUrl: bookmark.faviconUrl,
+      coverImageUrl: bookmark.coverImageUrl,
+      updatedAt: bookmark.updatedAt,
+    };
+
+    try {
+      await apiRefreshBookmarkMetadata(bookmark.id);
+
+      // Worker extraction is async; poll a few times so users can see updates without a manual reload.
+      let delayMs = 1_500;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const latest = await apiGetBookmark(bookmark.id);
+        setBookmark(latest);
+
+        const changed =
+          latest.title !== baseline.title ||
+          latest.description !== baseline.description ||
+          latest.faviconUrl !== baseline.faviconUrl ||
+          latest.coverImageUrl !== baseline.coverImageUrl ||
+          latest.updatedAt !== baseline.updatedAt;
+
+        if (changed) {
+          setMetadataMessage('Metadata refreshed successfully.');
+          return;
+        }
+
+        delayMs *= 2;
+      }
+
+      setMetadataMessage('Refresh queued. Metadata may update shortly due to rate limits.');
+    } catch (err) {
+      setMetadataMessage(err instanceof Error ? err.message : 'Failed to refresh metadata.');
+    } finally {
+      setIsRefreshingMetadata(false);
+    }
+  }
 
   if (isLoading) return <FullPageSpinner />;
 
@@ -77,6 +127,18 @@ export default function BookmarkDetailPage(): React.ReactElement {
 
       {/* ── Metadata card ──────────────────────────────────────────────── */}
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleRefreshMetadata()}
+            disabled={isRefreshingMetadata}
+          >
+            {isRefreshingMetadata ? 'Refreshing…' : 'Refresh Metadata'}
+          </Button>
+        </div>
+
         {/* Cover image */}
         {bookmark.coverImageUrl && (
           <img
@@ -140,6 +202,12 @@ export default function BookmarkDetailPage(): React.ReactElement {
           <span>Saved {new Date(bookmark.createdAt).toLocaleDateString()}</span>
           {bookmark.readAt && <span>Read {new Date(bookmark.readAt).toLocaleDateString()}</span>}
         </div>
+
+        {metadataMessage && (
+          <p className="mt-3 text-xs text-muted-foreground" role="status" aria-live="polite">
+            {metadataMessage}
+          </p>
+        )}
 
         {/* Personal notes */}
         {bookmark.notes && (
@@ -213,8 +281,8 @@ export default function BookmarkDetailPage(): React.ReactElement {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No annotations yet. Switch to the <strong>Saved Copy</strong> tab and select
-                text to highlight or add a note.
+                No annotations yet. Switch to the <strong>Saved Copy</strong> tab and select text to
+                highlight or add a note.
               </p>
             )}
           </>

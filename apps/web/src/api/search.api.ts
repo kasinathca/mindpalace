@@ -15,9 +15,14 @@ export interface SearchParams {
 }
 
 export interface SearchResponse {
-  bookmarks: BookmarkItem[];
+  bookmarks: SearchBookmarkItem[];
   total: number;
   query: string;
+}
+
+export interface SearchBookmarkItem extends BookmarkItem {
+  searchSnippet: string | null;
+  searchHighlights: string[];
 }
 
 export async function apiSearchBookmarks(params: SearchParams): Promise<SearchResponse> {

@@ -10,6 +10,7 @@ import { useSearchStore } from '../stores/searchStore.js';
 import { useTagsStore } from '../stores/tagsStore.js';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard.js';
 import { EmptyState } from '../components/common/EmptyState.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -152,11 +153,7 @@ export default function SearchPage(): React.ReactElement {
       )}
 
       {/* ── Error ── */}
-      {error && (
-        <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <InlineNotice message={error} variant="error" className="mb-4" />}
 
       {/* ── Empty state ── */}
       {showEmpty && (

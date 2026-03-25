@@ -92,8 +92,16 @@ function collectionCacheKey(userId: string): string {
   return `collections:${userId}`;
 }
 
+function tagCacheKey(userId: string): string {
+  return `tags:${userId}`;
+}
+
 async function invalidateCollectionTreeCache(userId: string): Promise<void> {
   await cacheDel(collectionCacheKey(userId));
+}
+
+async function invalidateTagListCache(userId: string): Promise<void> {
+  await cacheDel(tagCacheKey(userId));
 }
 
 // ── Service methods ───────────────────────────────────────────────────────────
@@ -213,7 +221,10 @@ export async function createBookmark(
   // Enqueue permanent copy capture (fire-and-forget)
   await archiveQueue.add('capture', { bookmarkId: bookmark.id, url: bookmark.url });
 
-  await invalidateCollectionTreeCache(userId);
+  await Promise.all([
+    invalidateCollectionTreeCache(userId),
+    input.tags.length > 0 ? invalidateTagListCache(userId) : Promise.resolve(),
+  ]);
 
   return serialiseBookmark(bookmark);
 }
@@ -276,6 +287,9 @@ export async function updateBookmark(
   if (input.collectionId !== undefined) {
     await invalidateCollectionTreeCache(userId);
   }
+  if (input.tags !== undefined) {
+    await invalidateTagListCache(userId);
+  }
 
   return serialiseBookmark(updated);
 }
@@ -286,7 +300,7 @@ export async function deleteBookmark(userId: string, bookmarkId: string): Promis
     throw new AppError(HTTP.NOT_FOUND, 'Bookmark not found.');
   }
   await prisma.bookmark.delete({ where: { id: bookmarkId } });
-  await invalidateCollectionTreeCache(userId);
+  await Promise.all([invalidateCollectionTreeCache(userId), invalidateTagListCache(userId)]);
 }
 
 export async function batchDeleteBookmarks(userId: string, ids: string[]): Promise<number> {
@@ -294,7 +308,7 @@ export async function batchDeleteBookmarks(userId: string, ids: string[]): Promi
     where: { id: { in: ids }, userId },
   });
   if (result.count > 0) {
-    await invalidateCollectionTreeCache(userId);
+    await Promise.all([invalidateCollectionTreeCache(userId), invalidateTagListCache(userId)]);
   }
   return result.count;
 }
@@ -338,6 +352,8 @@ export async function batchTagBookmarks(userId: string, input: BatchTagInput): P
       await tx.bookmarkTag.createMany({ data: pairs, skipDuplicates: true });
     }
   });
+
+  await invalidateTagListCache(userId);
 
   return input.ids.length;
 }
@@ -447,7 +463,7 @@ export async function importBookmarks(
   }
 
   if (imported > 0) {
-    await invalidateCollectionTreeCache(userId);
+    await Promise.all([invalidateCollectionTreeCache(userId), invalidateTagListCache(userId)]);
   }
 
   return { imported, skipped, errors };

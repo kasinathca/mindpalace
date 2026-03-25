@@ -19,6 +19,8 @@ vi.mock('../../lib/prisma.js', () => ({
       delete: vi.fn(),
     },
     bookmark: {
+      findMany: vi.fn(),
+      count: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -172,15 +174,21 @@ describe('CollectionService.updateCollection', () => {
 describe('CollectionService.deleteCollection', () => {
   it('deletes a collection without action', async () => {
     vi.mocked(prisma.collection.findUnique).mockResolvedValue(flatRoot as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_01', parentId: null },
+    ] as never);
+    vi.mocked(prisma.bookmark.count).mockResolvedValue(2 as never);
     vi.mocked(prisma.bookmark.deleteMany).mockResolvedValue({ count: 2 });
     vi.mocked(prisma.collection.delete).mockResolvedValue(flatRoot as never);
 
-    await expect(
-      deleteCollection(USER_ID, 'col_01', { action: 'delete' }),
-    ).resolves.toBeUndefined();
+    await expect(deleteCollection(USER_ID, 'col_01', { action: 'delete' })).resolves.toEqual({
+      action: 'delete',
+      deletedCollectionId: 'col_01',
+      affectedBookmarkCount: 2,
+    });
 
     expect(prisma.bookmark.deleteMany).toHaveBeenCalledWith({
-      where: { collectionId: 'col_01', userId: USER_ID },
+      where: { collectionId: { in: ['col_01'] }, userId: USER_ID },
     });
     expect(prisma.collection.delete).toHaveBeenCalledWith({ where: { id: 'col_01' } });
   });
@@ -194,19 +202,35 @@ describe('CollectionService.deleteCollection', () => {
   });
 
   it('moves bookmarks to target before deleting when action=move', async () => {
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_01', parentId: null },
+      { id: 'col_99', parentId: null },
+    ] as never);
     vi.mocked(prisma.collection.findUnique)
       .mockResolvedValueOnce(flatRoot as never) // existing
       .mockResolvedValueOnce({ id: 'col_99', userId: USER_ID } as never); // target
+    vi.mocked(prisma.bookmark.findMany).mockResolvedValue([
+      { id: 'bm_01' },
+      { id: 'bm_02' },
+    ] as never);
     vi.mocked(prisma.bookmark.updateMany).mockResolvedValue({ count: 2 });
     vi.mocked(prisma.collection.delete).mockResolvedValue(flatRoot as never);
 
-    await deleteCollection(USER_ID, 'col_01', {
+    await expect(
+      deleteCollection(USER_ID, 'col_01', {
+        action: 'move',
+        targetCollectionId: 'col_99',
+      }),
+    ).resolves.toEqual({
       action: 'move',
+      deletedCollectionId: 'col_01',
+      affectedBookmarkCount: 2,
+      movedBookmarkIds: ['bm_01', 'bm_02'],
       targetCollectionId: 'col_99',
     });
 
     expect(prisma.bookmark.updateMany).toHaveBeenCalledWith({
-      where: { collectionId: 'col_01', userId: USER_ID },
+      where: { collectionId: { in: ['col_01'] }, userId: USER_ID },
       data: { collectionId: 'col_99' },
     });
     expect(prisma.bookmark.deleteMany).not.toHaveBeenCalled();

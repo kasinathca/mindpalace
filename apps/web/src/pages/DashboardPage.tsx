@@ -11,10 +11,14 @@ import { useCollectionsStore } from '../stores/collectionsStore.js';
 import { BookmarkCard } from '../components/bookmarks/BookmarkCard.js';
 import { AddBookmarkModal } from '../components/bookmarks/AddBookmarkModal.js';
 import { BatchActionBar } from '../components/bookmarks/BatchActionBar.js';
-import { FilterPanel, type BookmarkFilters as PanelFilters } from '../components/bookmarks/FilterPanel.js';
+import {
+  FilterPanel,
+  type BookmarkFilters as PanelFilters,
+} from '../components/bookmarks/FilterPanel.js';
 import { Button } from '../components/ui/button.js';
 import { FullPageSpinner } from '../components/common/LoadingSpinner.js';
 import { EmptyState } from '../components/common/EmptyState.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import type { BookmarkFilters } from '@mindpalace/shared';
 
 // ── ViewToggle icons ──────────────────────────────────────────────────────────
@@ -217,11 +221,7 @@ export default function DashboardPage(): React.ReactElement {
       )}
 
       {/* ── Error banner ───────────────────────────────────────────── */}
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <InlineNotice message={error} variant="error" />}
 
       {/* ── Loading (initial) ──────────────────────────────────────── */}
       {isLoading && bookmarks.length === 0 && <FullPageSpinner />}
@@ -313,10 +313,7 @@ export default function DashboardPage(): React.ReactElement {
       />
 
       {/* ── Batch action bar (floats when ≥1 bookmark is selected) ── */}
-      <BatchActionBar
-        selectedIds={selectedIds}
-        onClearSelection={() => setSelectedIds([])}
-      />
+      <BatchActionBar selectedIds={selectedIds} onClearSelection={() => setSelectedIds([])} />
     </div>
   );
 }

@@ -83,7 +83,11 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       (req.body as { refreshToken?: string })?.refreshToken;
 
     if (!rawToken) {
-      res.status(HTTP.UNAUTHORISED).json({ success: false, error: 'Refresh token not provided.' });
+      res.status(HTTP.UNAUTHORISED).json({
+        success: false,
+        error: 'Refresh token not provided.',
+        code: 'AUTH_REFRESH_TOKEN_MISSING',
+      });
       return;
     }
 

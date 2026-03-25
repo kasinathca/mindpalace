@@ -10,6 +10,7 @@ import { apiForgotPassword } from '../api/auth.api.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { Label } from '../components/ui/label.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import {
   Card,
   CardContent,
@@ -86,9 +87,12 @@ export default function ForgotPasswordPage(): React.ReactElement {
                 {...register('email')}
               />
               {errors.email && (
-                <p id="email-error" className="text-xs text-destructive">
-                  {errors.email.message}
-                </p>
+                <InlineNotice
+                  id="email-error"
+                  message={errors.email.message ?? 'Please enter a valid email address.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
           </CardContent>

@@ -4,7 +4,9 @@
 import React, { useRef, useState } from 'react';
 import { apiClient } from '../api/client.js';
 import { Button } from '../components/ui/button.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import { useCollectionsStore } from '../stores/collectionsStore.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 // ── Shared types ──────────────────────────────────────────────────────────────
 
@@ -50,7 +52,7 @@ function ImportSection(): React.JSX.Element {
       setFile(null);
       if (fileRef.current) fileRef.current.value = '';
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Import failed. Please try again.';
+      const message = getUserFriendlyErrorMessage(err, 'Import failed. Please try again.');
       setError(message);
     } finally {
       setUploading(false);
@@ -108,11 +110,7 @@ function ImportSection(): React.JSX.Element {
         />
       </label>
 
-      {error && (
-        <p className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <InlineNotice message={error} variant="error" className="mt-3" />}
 
       {result && (
         <div className="mt-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800 dark:bg-green-900/20 dark:text-green-300">
@@ -164,7 +162,7 @@ function ExportSection(): React.JSX.Element {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Export failed. Please try again.');
+      setError(getUserFriendlyErrorMessage(err, 'Export failed. Please try again.'));
     } finally {
       setExporting(null);
     }
@@ -178,11 +176,7 @@ function ExportSection(): React.JSX.Element {
         format is compatible with all major browsers for re-import.
       </p>
 
-      {error && (
-        <p className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <InlineNotice message={error} variant="error" className="mb-3" />}
 
       <div className="flex flex-wrap gap-3">
         <Button

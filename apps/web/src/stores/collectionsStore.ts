@@ -7,10 +7,20 @@ import {
   apiCreateCollection,
   apiUpdateCollection,
   apiDeleteCollection,
+  type DeleteCollectionResult,
   type CollectionNode,
   type CreateCollectionParams,
   type UpdateCollectionParams,
 } from '../api/collections.api.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
+
+function collectionExists(nodes: CollectionNode[], id: string): boolean {
+  for (const node of nodes) {
+    if (node.id === id) return true;
+    if (collectionExists(node.children, id)) return true;
+  }
+  return false;
+}
 
 interface CollectionsState {
   tree: CollectionNode[];
@@ -27,7 +37,7 @@ interface CollectionsActions {
     id: string,
     action?: 'move' | 'delete',
     targetCollectionId?: string,
-  ) => Promise<void>;
+  ) => Promise<DeleteCollectionResult>;
   selectCollection: (id: string | null) => void;
   clearError: () => void;
 }
@@ -48,7 +58,7 @@ export const useCollectionsStore = create<CollectionsStore>((set, get) => ({
     } catch (err: unknown) {
       set({
         isLoading: false,
-        error: err instanceof Error ? err.message : 'Failed to load collections.',
+        error: getUserFriendlyErrorMessage(err, 'Failed to load collections.'),
       });
     }
   },
@@ -60,7 +70,7 @@ export const useCollectionsStore = create<CollectionsStore>((set, get) => ({
       await get().fetchTree();
       return created;
     } catch (err: unknown) {
-      set({ error: err instanceof Error ? err.message : 'Failed to create collection.' });
+      set({ error: getUserFriendlyErrorMessage(err, 'Failed to create collection.') });
       throw err;
     }
   },
@@ -70,19 +80,23 @@ export const useCollectionsStore = create<CollectionsStore>((set, get) => ({
       await apiUpdateCollection(id, input);
       await get().fetchTree();
     } catch (err: unknown) {
-      set({ error: err instanceof Error ? err.message : 'Failed to update collection.' });
+      set({ error: getUserFriendlyErrorMessage(err, 'Failed to update collection.') });
       throw err;
     }
   },
 
   deleteCollection: async (id, action = 'delete', targetCollectionId) => {
     try {
-      await apiDeleteCollection(id, action, targetCollectionId);
-      // If deleted collection is selected, deselect
-      if (get().selectedId === id) set({ selectedId: null });
+      const result = await apiDeleteCollection(id, action, targetCollectionId);
       await get().fetchTree();
+
+      const selectedId = get().selectedId;
+      if (selectedId && !collectionExists(get().tree, selectedId)) {
+        set({ selectedId: null });
+      }
+      return result;
     } catch (err: unknown) {
-      set({ error: err instanceof Error ? err.message : 'Failed to delete collection.' });
+      set({ error: getUserFriendlyErrorMessage(err, 'Failed to delete collection.') });
       throw err;
     }
   },

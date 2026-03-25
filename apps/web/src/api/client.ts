@@ -6,6 +6,7 @@
 //                       the original request. If refresh also fails, logs out.
 // ─────────────────────────────────────────────────────────────────────────────
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { toUserFacingError } from '../utils/apiError.js';
 
 // We import the store lazily inside the interceptor to avoid circular deps
 let getAccessToken: () => string | null = () => null;
@@ -101,14 +102,12 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
         logoutUser();
-        return Promise.reject(
-          refreshError instanceof Error ? refreshError : new Error(String(refreshError)),
-        );
+        return Promise.reject(toUserFacingError(refreshError, 'Authentication failed.'));
       } finally {
         isRefreshing = false;
       }
     }
 
-    return Promise.reject(error);
+    return Promise.reject(toUserFacingError(error, 'Request failed. Please try again.'));
   },
 );

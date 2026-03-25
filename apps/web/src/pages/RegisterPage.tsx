@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/authStore.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { Label } from '../components/ui/label.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import {
   Card,
   CardContent,
@@ -75,14 +76,7 @@ export default function RegisterPage(): React.ReactElement {
         {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CardContent className="space-y-4">
-            {error && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </div>
-            )}
+            {error && <InlineNotice message={error} variant="error" />}
 
             <div className="space-y-2">
               <Label htmlFor="displayName">Display name</Label>
@@ -96,9 +90,12 @@ export default function RegisterPage(): React.ReactElement {
                 {...register('displayName')}
               />
               {errors.displayName && (
-                <p id="displayName-error" className="text-xs text-destructive">
-                  {errors.displayName.message}
-                </p>
+                <InlineNotice
+                  id="displayName-error"
+                  message={errors.displayName.message ?? 'Please enter your display name.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
 
@@ -114,9 +111,12 @@ export default function RegisterPage(): React.ReactElement {
                 {...register('email')}
               />
               {errors.email && (
-                <p id="email-error" className="text-xs text-destructive">
-                  {errors.email.message}
-                </p>
+                <InlineNotice
+                  id="email-error"
+                  message={errors.email.message ?? 'Please enter a valid email address.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
 
@@ -132,9 +132,12 @@ export default function RegisterPage(): React.ReactElement {
                 {...register('password')}
               />
               {errors.password && (
-                <p id="password-error" className="text-xs text-destructive">
-                  {errors.password.message}
-                </p>
+                <InlineNotice
+                  id="password-error"
+                  message={errors.password.message ?? 'Please enter a stronger password.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
 
@@ -149,9 +152,12 @@ export default function RegisterPage(): React.ReactElement {
                 {...register('confirmPassword')}
               />
               {errors.confirmPassword && (
-                <p id="confirmPassword-error" className="text-xs text-destructive">
-                  {errors.confirmPassword.message}
-                </p>
+                <InlineNotice
+                  id="confirmPassword-error"
+                  message={errors.confirmPassword.message ?? 'Please confirm your password.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
           </CardContent>

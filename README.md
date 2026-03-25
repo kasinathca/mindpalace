@@ -58,7 +58,7 @@ pnpm --filter api run db:migrate
 pnpm --filter api run db:seed
 
 # 7. Start all development servers concurrently
-pnpm run dev
+pnpm run app:start
 ```
 
 | Service              | URL                            |
@@ -97,16 +97,27 @@ For full architecture, database schema, API spec, sprint plan, and security deta
 
 Run these from the **repository root** unless otherwise noted.
 
-| Command                 | Description                                         |
-| ----------------------- | --------------------------------------------------- |
-| `pnpm run dev`          | Start API + Worker + Web concurrently in watch mode |
-| `pnpm run build`        | Production build of all packages                    |
-| `pnpm run lint`         | ESLint across all packages                          |
-| `pnpm run type-check`   | TypeScript compiler check (no emit)                 |
-| `pnpm run test`         | All tests — unit + integration                      |
-| `pnpm run test:e2e`     | Playwright end-to-end tests                         |
-| `pnpm run format`       | Prettier format all files                           |
-| `pnpm run format:check` | Check formatting without writing                    |
+| Command                 | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `pnpm run dev`          | Start API + Worker + Web concurrently in watch mode          |
+| `pnpm run app:start`    | Managed startup: infra -> migrate -> API -> worker -> web    |
+| `pnpm run app:stop`     | Managed graceful shutdown (drains workers, then stops infra) |
+| `pnpm run app:status`   | Show managed process status                                  |
+| `pnpm run app:restart`  | Managed stop followed by managed start                       |
+| `pnpm run build`        | Production build of all packages                             |
+| `pnpm run lint`         | ESLint across all packages                                   |
+| `pnpm run type-check`   | TypeScript compiler check (no emit)                          |
+| `pnpm run test`         | All tests — unit + integration                               |
+| `pnpm run test:e2e`     | Playwright end-to-end tests                                  |
+| `pnpm run format`       | Prettier format all files                                    |
+| `pnpm run format:check` | Check formatting without writing                             |
+
+### Lifecycle Notes
+
+- `app:start` launches services in safe order and waits for readiness checks before moving to the next step.
+- `app:stop` shuts down web, worker, and API in order, allowing worker queues to drain before process exit.
+- PostgreSQL data and Redis AOF persistence are retained across restarts, reducing risk of data loss.
+- If a managed child process exits unexpectedly, the lifecycle manager triggers a full controlled shutdown to avoid partial broken state.
 
 ---
 

@@ -115,7 +115,11 @@ export async function register(
     select: { id: true },
   });
   if (existing) {
-    throw new AppError(HTTP.CONFLICT, 'An account with this email already exists.');
+    throw new AppError(
+      HTTP.CONFLICT,
+      'An account with this email already exists.',
+      'AUTH_EMAIL_ALREADY_REGISTERED',
+    );
   }
 
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
@@ -145,12 +149,12 @@ export async function login(
   if (!user) {
     // Use a constant-time comparison to prevent timing attacks (user enumeration)
     await bcrypt.compare(input.password, '$2a$12$invalidhash.padding.padding.padding.p');
-    throw new AppError(HTTP.UNAUTHORISED, 'Invalid email or password.');
+    throw new AppError(HTTP.UNAUTHORISED, 'Invalid email or password.', 'AUTH_USER_NOT_FOUND');
   }
 
   const passwordMatches = await bcrypt.compare(input.password, user.passwordHash);
   if (!passwordMatches) {
-    throw new AppError(HTTP.UNAUTHORISED, 'Invalid email or password.');
+    throw new AppError(HTTP.UNAUTHORISED, 'Invalid email or password.', 'AUTH_INVALID_PASSWORD');
   }
 
   const accessToken = signAccessToken(user.id, user.email);
@@ -166,7 +170,11 @@ export async function refreshTokens(
   try {
     payload = jwt.verify(rawRefreshToken, env.JWT_REFRESH_SECRET) as { sub: string };
   } catch {
-    throw new AppError(HTTP.UNAUTHORISED, 'Invalid or expired refresh token.');
+    throw new AppError(
+      HTTP.UNAUTHORISED,
+      'Invalid or expired refresh token.',
+      'AUTH_REFRESH_TOKEN_INVALID',
+    );
   }
 
   const user = await prisma.user.findUnique({
@@ -175,7 +183,7 @@ export async function refreshTokens(
   });
 
   if (!user) {
-    throw new AppError(HTTP.UNAUTHORISED, 'User not found.');
+    throw new AppError(HTTP.UNAUTHORISED, 'User not found.', 'AUTH_REFRESH_USER_NOT_FOUND');
   }
 
   const newAccessToken = signAccessToken(user.id, user.email);
@@ -219,7 +227,11 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
 
   if (!record || record.usedAt || record.expiresAt < new Date()) {
-    throw new AppError(HTTP.BAD_REQUEST, 'This password reset link is invalid or has expired.');
+    throw new AppError(
+      HTTP.BAD_REQUEST,
+      'This password reset link is invalid or has expired.',
+      'AUTH_RESET_TOKEN_INVALID_OR_EXPIRED',
+    );
   }
 
   const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
@@ -259,10 +271,19 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Sa
   let passwordHash: string | undefined;
   if (input.newPassword) {
     if (!input.currentPassword) {
-      throw new AppError(HTTP.BAD_REQUEST, 'Current password is required to set a new password.');
+      throw new AppError(
+        HTTP.BAD_REQUEST,
+        'Current password is required to set a new password.',
+        'AUTH_CURRENT_PASSWORD_REQUIRED',
+      );
     }
     const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
-    if (!valid) throw new AppError(HTTP.UNAUTHORISED, 'Current password is incorrect.');
+    if (!valid)
+      throw new AppError(
+        HTTP.UNAUTHORISED,
+        'Current password is incorrect.',
+        'AUTH_CURRENT_PASSWORD_INCORRECT',
+      );
     passwordHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
   }
 

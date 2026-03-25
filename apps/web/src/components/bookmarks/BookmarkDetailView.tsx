@@ -14,6 +14,8 @@ import { Button } from '../ui/button.js';
 import { apiCreateAnnotation, type AnnotationItem } from '../../api/annotations.api.js';
 import { apiGetBookmark, apiRefreshBookmarkMetadata } from '../../api/bookmarks.api.js';
 import type { BookmarkItem } from '../../api/bookmarks.api.js';
+import { getUserFriendlyErrorMessage } from '../../utils/apiError.js';
+import { InlineNotice } from '../common/InlineNotice.js';
 
 interface BookmarkDetailViewProps {
   bookmark: BookmarkItem;
@@ -58,7 +60,7 @@ export function BookmarkDetailView({
       onAnnotationUpdated?.(created);
       setNewNote('');
     } catch (err: unknown) {
-      setNoteError(err instanceof Error ? err.message : 'Failed to add note.');
+      setNoteError(getUserFriendlyErrorMessage(err, 'Failed to add note.'));
     } finally {
       setAddingNote(false);
     }
@@ -102,7 +104,7 @@ export function BookmarkDetailView({
 
       setMetadataMessage('Refresh queued. Metadata may update shortly due to rate limits.');
     } catch (err) {
-      setMetadataMessage(err instanceof Error ? err.message : 'Failed to refresh metadata.');
+      setMetadataMessage(getUserFriendlyErrorMessage(err, 'Failed to refresh metadata.'));
     } finally {
       setIsRefreshingMetadata(false);
     }
@@ -194,9 +196,7 @@ export function BookmarkDetailView({
         </div>
 
         {metadataMessage && (
-          <p className="mt-3 text-xs text-muted-foreground" role="status" aria-live="polite">
-            {metadataMessage}
-          </p>
+          <InlineNotice message={metadataMessage} variant="info" size="compact" className="mt-3" />
         )}
 
         {/* Personal notes */}
@@ -272,7 +272,7 @@ export function BookmarkDetailView({
                 placeholder="Add a note about this bookmark…"
                 className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
-              {noteError && <p className="text-xs text-destructive">{noteError}</p>}
+              {noteError && <InlineNotice message={noteError} variant="error" size="compact" />}
               <Button
                 size="sm"
                 onClick={() => void handleAddNote()}

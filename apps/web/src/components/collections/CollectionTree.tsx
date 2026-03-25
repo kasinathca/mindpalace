@@ -14,6 +14,12 @@ import { useNavigate } from 'react-router-dom';
 import { useCollectionsStore } from '../../stores/collectionsStore.js';
 import { cn } from '../../utils/cn.js';
 import type { CollectionNode } from '../../api/collections.api.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu.js';
 
 // ── ChevronRight icon ─────────────────────────────────────────────────────────
 function ChevronIcon({ open }: { open: boolean }): React.JSX.Element {
@@ -39,9 +45,15 @@ interface TreeNodeProps {
   node: CollectionNode;
   depth: number;
   onCreateChild: (parentId: string) => void;
+  onDeleteCollection?: (node: CollectionNode) => void;
 }
 
-function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Element {
+function TreeNode({
+  node,
+  depth,
+  onCreateChild,
+  onDeleteCollection,
+}: TreeNodeProps): React.JSX.Element {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const { selectedId, selectCollection } = useCollectionsStore();
@@ -49,7 +61,11 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Elem
   const hasChildren = node.children.length > 0;
 
   return (
-    <li>
+    <li
+      role="treeitem"
+      aria-selected={isSelected}
+      aria-expanded={hasChildren ? expanded : undefined}
+    >
       <div
         className={cn(
           'group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-sm',
@@ -61,9 +77,6 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Elem
           void navigate('/dashboard');
           if (hasChildren) setExpanded((v) => !v);
         }}
-        role="treeitem"
-        aria-selected={isSelected}
-        aria-expanded={hasChildren ? expanded : undefined}
       >
         {/* Chevron (only if has children) */}
         <span className="flex h-4 w-4 items-center justify-center">
@@ -107,34 +120,56 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Elem
           </span>
         )}
 
-        {/* Add child button (visible on hover) */}
-        <button
-          type="button"
-          aria-label={`Add collection inside ${node.name}`}
-          className="ml-0.5 hidden rounded p-0.5 hover:bg-accent-foreground/10 group-hover:block"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCreateChild(node.id);
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-3.5 w-3.5 text-muted-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        {/* Node actions menu (visible on hover/focus) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Collection actions for ${node.name}`}
+              className="ml-0.5 rounded p-0.5 text-muted-foreground opacity-0 transition hover:bg-accent-foreground/10 group-hover:opacity-100 focus-visible:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6h.01M12 12h.01M12 18h.01"
+                />
+              </svg>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={() => onCreateChild(node.id)}>
+              New sub-collection
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => onDeleteCollection?.(node)}
+            >
+              Delete collection tree
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Recursive children */}
       {hasChildren && expanded && (
         <ul role="group">
           {node.children.map((child) => (
-            <TreeNode key={child.id} node={child} depth={depth + 1} onCreateChild={onCreateChild} />
+            <TreeNode
+              key={child.id}
+              node={child}
+              depth={depth + 1}
+              onCreateChild={onCreateChild}
+              {...(onDeleteCollection ? { onDeleteCollection } : {})}
+            />
           ))}
         </ul>
       )}
@@ -146,9 +181,13 @@ function TreeNode({ node, depth, onCreateChild }: TreeNodeProps): React.JSX.Elem
 
 interface CollectionTreeProps {
   onCreateCollection?: (parentId?: string) => void;
+  onDeleteCollection?: (node: CollectionNode) => void;
 }
 
-export function CollectionTree({ onCreateCollection }: CollectionTreeProps): React.JSX.Element {
+export function CollectionTree({
+  onCreateCollection,
+  onDeleteCollection,
+}: CollectionTreeProps): React.JSX.Element {
   const navigate = useNavigate();
   const { tree, isLoading, selectedId, selectCollection } = useCollectionsStore();
 
@@ -180,7 +219,7 @@ export function CollectionTree({ onCreateCollection }: CollectionTreeProps): Rea
   return (
     <ul className="space-y-0.5" role="tree" aria-label="Collections">
       {/* All Bookmarks (no collection filter) */}
-      <li>
+      <li role="treeitem" aria-selected={selectedId === null}>
         <div
           className={cn(
             'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm',
@@ -192,8 +231,6 @@ export function CollectionTree({ onCreateCollection }: CollectionTreeProps): Rea
             selectCollection(null);
             void navigate('/dashboard');
           }}
-          role="treeitem"
-          aria-selected={selectedId === null}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -219,6 +256,7 @@ export function CollectionTree({ onCreateCollection }: CollectionTreeProps): Rea
           node={node}
           depth={0}
           onCreateChild={(parentId) => onCreateCollection?.(parentId)}
+          {...(onDeleteCollection ? { onDeleteCollection } : {})}
         />
       ))}
     </ul>

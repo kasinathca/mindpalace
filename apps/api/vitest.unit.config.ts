@@ -15,6 +15,16 @@ export default defineConfig({
     env: {
       BCRYPT_ROUNDS: '4',
       NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/mindpalace_test',
+      REDIS_URL: 'redis://localhost:6379',
+      JWT_ACCESS_SECRET: 'test-access-secret-should-be-at-least-32-chars',
+      JWT_REFRESH_SECRET: 'test-refresh-secret-should-be-at-least-32-chars',
+      SMTP_HOST: 'localhost',
+      SMTP_PORT: '1025',
+      SMTP_USER: 'test@test.local',
+      SMTP_PASS: 'test-password',
+      EMAIL_FROM: 'noreply@test.local',
+      CORS_ORIGIN: 'http://localhost:5173',
     },
     coverage: {
       provider: 'v8',

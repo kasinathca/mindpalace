@@ -30,6 +30,9 @@ interface ToastItemProps {
   description?: string;
   variant: ToastVariant;
   duration?: number;
+  actionLabel?: string;
+  onAction?: () => void | Promise<void>;
+  showActionCountdown?: boolean;
 }
 
 function ToastItem({
@@ -38,8 +41,30 @@ function ToastItem({
   description,
   variant,
   duration = 4000,
+  actionLabel,
+  onAction,
+  showActionCountdown = false,
 }: ToastItemProps): React.JSX.Element {
   const removeToast = useUiStore((s) => s.removeToast);
+  const [remainingMs, setRemainingMs] = React.useState(duration);
+
+  React.useEffect(() => {
+    if (!showActionCountdown || duration <= 0) return;
+
+    setRemainingMs(duration);
+    const startedAt = Date.now();
+    const intervalId = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const next = Math.max(0, duration - elapsed);
+      setRemainingMs(next);
+    }, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, [duration, id, showActionCountdown]);
+
+  const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+  const actionText =
+    actionLabel && showActionCountdown ? `${actionLabel} (${remainingSeconds}s)` : actionLabel;
 
   return (
     <ToastPrimitive.Root
@@ -62,6 +87,18 @@ function ToastItem({
           <ToastPrimitive.Description className="text-sm opacity-80">
             {description}
           </ToastPrimitive.Description>
+        )}
+        {actionLabel && onAction && (
+          <ToastPrimitive.Action
+            altText={actionLabel}
+            className="mt-1 inline-flex w-fit rounded-md border border-current/30 px-2 py-1 text-xs font-medium hover:bg-black/5"
+            onClick={() => {
+              void onAction();
+              removeToast(id);
+            }}
+          >
+            {actionText}
+          </ToastPrimitive.Action>
         )}
       </div>
       <ToastPrimitive.Close

@@ -33,6 +33,14 @@ export interface CollectionNode {
   _count: { bookmarks: number };
 }
 
+export interface DeleteCollectionResult {
+  action: 'move' | 'delete';
+  deletedCollectionId: string;
+  affectedBookmarkCount: number;
+  movedBookmarkIds?: string[];
+  targetCollectionId?: string;
+}
+
 interface FlatCollection {
   id: string;
   name: string;
@@ -79,6 +87,55 @@ function getDepth(items: CollectionAncestry[], id: string): number {
     if (depth > COLLECTION.MAX_NESTING_DEPTH) break;
   }
   return depth;
+}
+
+function collectSubtreeIds(items: CollectionAncestry[], rootId: string): string[] {
+  const childrenByParent = new Map<string, string[]>();
+  for (const item of items) {
+    if (!item.parentId) continue;
+    const existing = childrenByParent.get(item.parentId) ?? [];
+    existing.push(item.id);
+    childrenByParent.set(item.parentId, existing);
+  }
+
+  const subtreeIds: string[] = [];
+  const stack = [rootId];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    subtreeIds.push(current);
+    const children = childrenByParent.get(current) ?? [];
+    for (const childId of children) {
+      stack.push(childId);
+    }
+  }
+
+  return subtreeIds;
+}
+
+function getSubtreeHeight(items: CollectionAncestry[], rootId: string): number {
+  const childrenByParent = new Map<string, string[]>();
+  for (const item of items) {
+    if (!item.parentId) continue;
+    const existing = childrenByParent.get(item.parentId) ?? [];
+    existing.push(item.id);
+    childrenByParent.set(item.parentId, existing);
+  }
+
+  let maxHeight = 0;
+  const stack: Array<{ id: string; depth: number }> = [{ id: rootId, depth: 0 }];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    if (current.depth > maxHeight) maxHeight = current.depth;
+    const children = childrenByParent.get(current.id) ?? [];
+    for (const childId of children) {
+      stack.push({ id: childId, depth: current.depth + 1 });
+    }
+  }
+
+  return maxHeight;
 }
 // ── Cache helpers ──────────────────────────────────────────────────────────
 const CACHE_TTL = 300; // 5 minutes
@@ -171,6 +228,11 @@ export async function updateCollection(
       select: { id: true, parentId: true },
     });
 
+    const newParent = allCollections.find((c) => c.id === input.parentId);
+    if (!newParent) {
+      throw new AppError(HTTP.NOT_FOUND, 'Parent collection not found.');
+    }
+
     const isDescendant = (targetId: string, ancestorId: string): boolean => {
       const target = allCollections.find((c) => c.id === targetId);
       if (!target || !target.parentId) return false;
@@ -182,6 +244,15 @@ export async function updateCollection(
       throw new AppError(
         HTTP.BAD_REQUEST,
         'Cannot move a collection into one of its own descendants.',
+      );
+    }
+
+    const newParentDepth = getDepth(allCollections, input.parentId);
+    const movingSubtreeHeight = getSubtreeHeight(allCollections, collectionId);
+    if (newParentDepth + 1 + movingSubtreeHeight > COLLECTION.MAX_NESTING_DEPTH) {
+      throw new AppError(
+        HTTP.BAD_REQUEST,
+        `Collections cannot be nested more than ${COLLECTION.MAX_NESTING_DEPTH} levels deep.`,
       );
     }
   }
@@ -227,7 +298,7 @@ export async function deleteCollection(
   userId: string,
   collectionId: string,
   query: DeleteCollectionQuery,
-): Promise<void> {
+): Promise<DeleteCollectionResult> {
   const existing = await prisma.collection.findUnique({
     where: { id: collectionId },
     include: { _count: { select: { bookmarks: true } } },
@@ -236,7 +307,13 @@ export async function deleteCollection(
     throw new AppError(HTTP.NOT_FOUND, 'Collection not found.');
   }
 
-  await prisma.$transaction(async (tx) => {
+  const allCollections = await prisma.collection.findMany({
+    where: { userId },
+    select: { id: true, parentId: true },
+  });
+  const subtreeIds = collectSubtreeIds(allCollections, collectionId);
+
+  const outcome = await prisma.$transaction(async (tx) => {
     if (query.action === 'move') {
       if (!query.targetCollectionId) {
         throw new AppError(
@@ -251,27 +328,62 @@ export async function deleteCollection(
         );
       }
 
+      if (subtreeIds.includes(query.targetCollectionId)) {
+        throw new AppError(
+          HTTP.BAD_REQUEST,
+          'targetCollectionId cannot be inside the collection subtree being deleted.',
+        );
+      }
+
       const target = await tx.collection.findUnique({ where: { id: query.targetCollectionId } });
       if (!target || target.userId !== userId) {
         throw new AppError(HTTP.NOT_FOUND, 'Target collection not found.');
       }
 
-      // Move bookmarks to target collection before deleting source collection.
+      const bookmarksToMove = await tx.bookmark.findMany({
+        where: { collectionId: { in: subtreeIds }, userId },
+        select: { id: true },
+      });
+
+      const movedBookmarkIds = bookmarksToMove.map((b) => b.id);
+
+      // Move bookmarks from the full subtree before deleting its root.
       await tx.bookmark.updateMany({
-        where: { collectionId, userId },
+        where: { collectionId: { in: subtreeIds }, userId },
         data: { collectionId: query.targetCollectionId },
       });
-    } else {
-      // With Restrict FK, delete-mode must explicitly remove member bookmarks first.
-      await tx.bookmark.deleteMany({
-        where: { collectionId, userId },
-      });
-    }
 
-    await tx.collection.delete({ where: { id: collectionId } });
+      await tx.collection.delete({ where: { id: collectionId } });
+
+      return {
+        action: 'move' as const,
+        deletedCollectionId: collectionId,
+        affectedBookmarkCount: movedBookmarkIds.length,
+        movedBookmarkIds,
+        targetCollectionId: query.targetCollectionId,
+      };
+    } else {
+      const affectedBookmarkCount = await tx.bookmark.count({
+        where: { collectionId: { in: subtreeIds }, userId },
+      });
+
+      // With Restrict FK, delete-mode must explicitly remove subtree bookmarks first.
+      await tx.bookmark.deleteMany({
+        where: { collectionId: { in: subtreeIds }, userId },
+      });
+
+      await tx.collection.delete({ where: { id: collectionId } });
+
+      return {
+        action: 'delete' as const,
+        deletedCollectionId: collectionId,
+        affectedBookmarkCount,
+      };
+    }
   });
 
   await cacheDel(collectionCacheKey(userId));
+  return outcome;
 }
 
 export async function reorderCollection(

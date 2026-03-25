@@ -18,6 +18,9 @@ export interface ToastMessage {
   variant: ToastVariant;
   /** Auto-dismiss after this many milliseconds. Default: 4000. */
   duration?: number;
+  actionLabel?: string;
+  onAction?: () => void | Promise<void>;
+  showActionCountdown?: boolean;
 }
 
 // ── State interface ───────────────────────────────────────────────────────────

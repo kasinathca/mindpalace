@@ -10,6 +10,7 @@ import { apiResetPassword } from '../api/auth.api.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { Label } from '../components/ui/label.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import {
   Card,
   CardContent,
@@ -98,14 +99,7 @@ export default function ResetPasswordPage(): React.ReactElement {
         {/* eslint-disable-next-line @typescript-eslint/no-misused-promises */}
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CardContent className="space-y-4">
-            {error && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </div>
-            )}
+            {error && <InlineNotice message={error} variant="error" />}
             <div className="space-y-2">
               <Label htmlFor="password">New password</Label>
               <Input
@@ -117,9 +111,12 @@ export default function ResetPasswordPage(): React.ReactElement {
                 {...register('password')}
               />
               {errors.password && (
-                <p id="password-error" className="text-xs text-destructive">
-                  {errors.password.message}
-                </p>
+                <InlineNotice
+                  id="password-error"
+                  message={errors.password.message ?? 'Please enter a valid password.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
             <div className="space-y-2">
@@ -133,9 +130,12 @@ export default function ResetPasswordPage(): React.ReactElement {
                 {...register('confirmPassword')}
               />
               {errors.confirmPassword && (
-                <p id="confirmPassword-error" className="text-xs text-destructive">
-                  {errors.confirmPassword.message}
-                </p>
+                <InlineNotice
+                  id="confirmPassword-error"
+                  message={errors.confirmPassword.message ?? 'Please confirm your password.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
           </CardContent>

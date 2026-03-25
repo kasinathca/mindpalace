@@ -219,6 +219,7 @@ vite.config.ts.timestamp-*
 # Uploaded files (thumbnails, favicons, permanent copies)
 # These are generated at runtime and should not be committed
 apps/api/uploads/
+.mindpalace-runtime/
 
 # Playwright browser binaries and test reports
 apps/web/playwright-report/

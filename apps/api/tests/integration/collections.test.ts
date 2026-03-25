@@ -213,7 +213,7 @@ describe('PATCH /collections/:id/reorder', () => {
 // ── DELETE /collections/:id ───────────────────────────────────────────────────
 
 describe('DELETE /collections/:id', () => {
-  it('deletes a collection (action=delete) and returns 204', async () => {
+  it('deletes a collection (action=delete) and returns result payload', async () => {
     const { accessToken } = await createTestUser();
 
     const createRes = await api()
@@ -227,7 +227,15 @@ describe('DELETE /collections/:id', () => {
       .delete(`${BASE}/${id}?action=delete`)
       .set('Authorization', `Bearer ${accessToken}`);
 
-    expect(deleteRes.status).toBe(204);
+    expect(deleteRes.status).toBe(200);
+    const deleteBody = deleteRes.body as ApiSuccessBody<{
+      action: 'delete';
+      deletedCollectionId: string;
+      affectedBookmarkCount: number;
+    }>;
+    expect(deleteBody.success).toBe(true);
+    expect(deleteBody.data.action).toBe('delete');
+    expect(deleteBody.data.deletedCollectionId).toBe(id);
 
     // Verify removed from tree
     const treeRes = await api().get(BASE).set('Authorization', `Bearer ${accessToken}`);
@@ -259,7 +267,19 @@ describe('DELETE /collections/:id', () => {
       .delete(`${BASE}/${srcId}?action=move&targetCollectionId=${tgtId}`)
       .set('Authorization', `Bearer ${accessToken}`);
 
-    expect(deleteRes.status).toBe(204);
+    expect(deleteRes.status).toBe(200);
+    const deleteBody = deleteRes.body as ApiSuccessBody<{
+      action: 'move';
+      deletedCollectionId: string;
+      affectedBookmarkCount: number;
+      movedBookmarkIds?: string[];
+      targetCollectionId?: string;
+    }>;
+    expect(deleteBody.success).toBe(true);
+    expect(deleteBody.data.action).toBe('move');
+    expect(deleteBody.data.deletedCollectionId).toBe(srcId);
+    expect(deleteBody.data.targetCollectionId).toBe(tgtId);
+    expect(deleteBody.data.affectedBookmarkCount).toBeGreaterThanOrEqual(1);
 
     // Verify bookmark is now in the target collection
     const listRes = await api()

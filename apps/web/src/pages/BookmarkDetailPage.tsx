@@ -12,9 +12,11 @@ import { NoteCard } from '../components/bookmarks/NoteCard.js';
 import { PermanentCopyViewer } from '../components/bookmarks/PermanentCopyViewer.js';
 import { AnnotationToolbar } from '../components/bookmarks/AnnotationToolbar.js';
 import { FullPageSpinner } from '../components/common/LoadingSpinner.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import { Button } from '../components/ui/button.js';
 import type { BookmarkItem } from '../api/bookmarks.api.js';
 import type { AnnotationItem } from '../api/annotations.api.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 export default function BookmarkDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -36,8 +38,10 @@ export default function BookmarkDetailPage(): React.ReactElement {
       const [bm, anns] = await Promise.all([apiGetBookmark(id), apiListAnnotations(id)]);
       setBookmark(bm);
       setAnnotations(anns);
-    } catch {
-      setError('Bookmark not found or you do not have access to it.');
+    } catch (err) {
+      setError(
+        getUserFriendlyErrorMessage(err, 'Bookmark not found or you do not have access to it.'),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +92,7 @@ export default function BookmarkDetailPage(): React.ReactElement {
 
       setMetadataMessage('Refresh queued. Metadata may update shortly due to rate limits.');
     } catch (err) {
-      setMetadataMessage(err instanceof Error ? err.message : 'Failed to refresh metadata.');
+      setMetadataMessage(getUserFriendlyErrorMessage(err, 'Failed to refresh metadata.'));
     } finally {
       setIsRefreshingMetadata(false);
     }
@@ -99,7 +103,7 @@ export default function BookmarkDetailPage(): React.ReactElement {
   if (error || !bookmark) {
     return (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
-        <p className="text-lg font-medium text-destructive">{error ?? 'Bookmark not found.'}</p>
+        <InlineNotice message={error ?? 'Bookmark not found.'} variant="error" />
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -204,9 +208,7 @@ export default function BookmarkDetailPage(): React.ReactElement {
         </div>
 
         {metadataMessage && (
-          <p className="mt-3 text-xs text-muted-foreground" role="status" aria-live="polite">
-            {metadataMessage}
-          </p>
+          <InlineNotice message={metadataMessage} variant="info" size="compact" className="mt-3" />
         )}
 
         {/* Personal notes */}

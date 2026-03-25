@@ -18,6 +18,8 @@ import {
 } from '../api/bookmarks.api.js';
 import type { BookmarkFilters } from '@mindpalace/shared';
 import { useCollectionsStore } from './collectionsStore.js';
+import { useTagsStore } from './tagsStore.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 interface PaginationState {
   total: number;
@@ -76,7 +78,7 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
     } catch (err: unknown) {
       set({
         isLoading: false,
-        error: err instanceof Error ? err.message : 'Failed to load bookmarks.',
+        error: getUserFriendlyErrorMessage(err, 'Failed to load bookmarks.'),
       });
     }
   },
@@ -149,10 +151,10 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
             .catch((err: unknown) => {
               if (attempt + 1 >= MAX_METADATA_REFRESH_ATTEMPTS) {
                 set({
-                  error:
-                    err instanceof Error
-                      ? `Metadata refresh failed: ${err.message}`
-                      : 'Metadata refresh failed.',
+                  error: `Metadata refresh failed: ${getUserFriendlyErrorMessage(
+                    err,
+                    'Please retry shortly.',
+                  )}`,
                 });
                 return;
               }
@@ -165,13 +167,16 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
       scheduleMetadataRefresh(0, INITIAL_METADATA_DELAY_MS);
 
       void useCollectionsStore.getState().fetchTree();
+      if (input.tags && input.tags.length > 0) {
+        void useTagsStore.getState().fetchTags();
+      }
 
       return created;
     } catch (err: unknown) {
       // Roll back optimistic update
       set((state) => ({
         bookmarks: state.bookmarks.filter((b) => b.id !== placeholder.id),
-        error: err instanceof Error ? err.message : 'Failed to save bookmark.',
+        error: getUserFriendlyErrorMessage(err, 'Failed to save bookmark.'),
       }));
       throw err;
     }
@@ -194,12 +199,15 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
       if (input.collectionId !== undefined) {
         void useCollectionsStore.getState().fetchTree();
       }
+      if (input.tags !== undefined) {
+        void useTagsStore.getState().fetchTags();
+      }
     } catch (err: unknown) {
       // Roll back
       if (previous) {
         set((state) => ({
           bookmarks: state.bookmarks.map((b) => (b.id === id ? previous : b)),
-          error: err instanceof Error ? err.message : 'Failed to update bookmark.',
+          error: getUserFriendlyErrorMessage(err, 'Failed to update bookmark.'),
         }));
       }
       throw err;
@@ -218,10 +226,13 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
     try {
       await apiDeleteBookmark(id);
       void useCollectionsStore.getState().fetchTree();
+      if (previous.some((bookmark) => bookmark.id === id && bookmark.tags.length > 0)) {
+        void useTagsStore.getState().fetchTags();
+      }
     } catch (err: unknown) {
       set({
         bookmarks: previous,
-        error: err instanceof Error ? err.message : 'Failed to delete bookmark.',
+        error: getUserFriendlyErrorMessage(err, 'Failed to delete bookmark.'),
       });
       throw err;
     }
@@ -241,10 +252,13 @@ export const useBookmarksStore = create<BookmarksStore>((set, get) => ({
     try {
       await apiBatchDeleteBookmarks(ids);
       void useCollectionsStore.getState().fetchTree();
+      if (previous.some((bookmark) => ids.includes(bookmark.id) && bookmark.tags.length > 0)) {
+        void useTagsStore.getState().fetchTags();
+      }
     } catch (err: unknown) {
       set({
         bookmarks: previous,
-        error: err instanceof Error ? err.message : 'Failed to delete bookmarks.',
+        error: getUserFriendlyErrorMessage(err, 'Failed to delete bookmarks.'),
       });
       throw err;
     }

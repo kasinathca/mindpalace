@@ -49,12 +49,12 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 
 export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    await CollectionsService.deleteCollection(
+    const result = await CollectionsService.deleteCollection(
       req.user!.id,
       req.params['id'] as string,
       req.query as unknown as DeleteCollectionQuery,
     );
-    res.status(HTTP.NO_CONTENT).send();
+    res.status(HTTP.OK).json({ success: true, data: result });
   } catch (err) {
     next(err);
   }

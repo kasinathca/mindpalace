@@ -14,6 +14,7 @@ import { useAuthStore } from '../stores/authStore.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { Label } from '../components/ui/label.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
 import {
   Card,
   CardContent,
@@ -64,14 +65,7 @@ export default function LoginPage(): React.ReactElement {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <CardContent className="space-y-4">
             {/* Server-side / store error */}
-            {error && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </div>
-            )}
+            {error && <InlineNotice message={error} variant="error" />}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -85,9 +79,12 @@ export default function LoginPage(): React.ReactElement {
                 {...register('email')}
               />
               {errors.email && (
-                <p id="email-error" className="text-xs text-destructive">
-                  {errors.email.message}
-                </p>
+                <InlineNotice
+                  id="email-error"
+                  message={errors.email.message ?? 'Please provide a valid email address.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
 
@@ -110,9 +107,12 @@ export default function LoginPage(): React.ReactElement {
                 {...register('password')}
               />
               {errors.password && (
-                <p id="password-error" className="text-xs text-destructive">
-                  {errors.password.message}
-                </p>
+                <InlineNotice
+                  id="password-error"
+                  message={errors.password.message ?? 'Please enter your password.'}
+                  variant="error"
+                  size="compact"
+                />
               )}
             </div>
           </CardContent>

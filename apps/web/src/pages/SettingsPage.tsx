@@ -6,6 +6,8 @@ import { useAuthStore } from '../stores/authStore.js';
 import { apiUpdateMe } from '../api/auth.api.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 // ── Section wrapper ────────────────────────────────────────────────────────
 
@@ -50,7 +52,7 @@ function ProfileSection(): React.JSX.Element {
       useAuthStore.setState((s) => ({ ...s, user: s.user ? { ...s.user, ...updated } : null }));
       setSuccess(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile.');
+      setError(getUserFriendlyErrorMessage(err, 'Failed to save profile.'));
     } finally {
       setSaving(false);
     }
@@ -85,7 +87,7 @@ function ProfileSection(): React.JSX.Element {
             required
           />
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <InlineNotice message={error} variant="error" />}
         {success && <p className="text-sm text-green-600 dark:text-green-400">Profile saved.</p>}
         <Button type="submit" disabled={saving}>
           {saving ? 'Saving…' : 'Save changes'}
@@ -125,7 +127,7 @@ function PasswordSection(): React.JSX.Element {
       setNewPassword('');
       setConfirm('');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update password.');
+      setError(getUserFriendlyErrorMessage(err, 'Failed to update password.'));
     } finally {
       setSaving(false);
     }
@@ -186,7 +188,7 @@ function PasswordSection(): React.JSX.Element {
             autoComplete="new-password"
           />
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <InlineNotice message={error} variant="error" />}
         {success && <p className="text-sm text-green-600 dark:text-green-400">Password updated.</p>}
         <Button type="submit" disabled={saving}>
           {saving ? 'Updating…' : 'Update password'}
@@ -220,11 +222,9 @@ function ThemeSection(): React.JSX.Element {
       (choice === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', isDark);
     // Persist preference to backend (fire-and-forget — UI is already applied)
-    void apiUpdateMe({ theme: choice.toUpperCase() as 'LIGHT' | 'DARK' | 'SYSTEM' }).catch(
-      () => {
-        /* non-critical — localStorage already applied */
-      },
-    );
+    void apiUpdateMe({ theme: choice.toUpperCase() as 'LIGHT' | 'DARK' | 'SYSTEM' }).catch(() => {
+      /* non-critical — localStorage already applied */
+    });
   }
 
   void current; // used for SSR guard in future

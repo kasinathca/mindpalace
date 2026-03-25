@@ -25,6 +25,8 @@ import {
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { Label } from '../ui/label.js';
+import { InlineNotice } from '../common/InlineNotice.js';
+import { TagAutocompleteInput } from './TagAutocompleteInput.js';
 import type { CollectionNode } from '../../api/collections.api.js';
 
 // ── Form schema ───────────────────────────────────────────────────────────────
@@ -38,7 +40,6 @@ const addBookmarkSchema = z.object({
       'URL must start with http:// or https://',
     ),
   collectionId: z.string().optional(),
-  tags: z.string().optional(), // comma-separated
   notes: z.string().max(10_000).optional(),
   isPinned: z.boolean().default(false),
   isFavourite: z.boolean().default(false),
@@ -74,6 +75,7 @@ export function AddBookmarkModal({
 
   // Duplicate detection state
   const [similarBookmarks, setSimilarBookmarks] = useState<BookmarkItem[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
@@ -119,23 +121,17 @@ export function AddBookmarkModal({
   }, [open]);
 
   async function onSubmit(values: AddBookmarkFormValues): Promise<void> {
-    const tags = values.tags
-      ? values.tags
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter(Boolean)
-      : [];
-
     await createBookmark({
       url: values.url,
       ...(values.collectionId ? { collectionId: values.collectionId } : {}),
-      ...(tags.length ? { tags } : {}),
+      ...(selectedTags.length ? { tags: selectedTags } : {}),
       ...(values.notes ? { notes: values.notes } : {}),
       isPinned: values.isPinned,
       isFavourite: values.isFavourite,
     });
 
     reset();
+    setSelectedTags([]);
     onOpenChange(false);
   }
 
@@ -161,7 +157,13 @@ export function AddBookmarkModal({
               {...register('url')}
               aria-invalid={!!errors.url}
             />
-            {errors.url && <p className="text-xs text-destructive">{errors.url.message}</p>}
+            {errors.url && (
+              <InlineNotice
+                message={errors.url.message ?? 'Please enter a valid URL.'}
+                variant="error"
+                size="compact"
+              />
+            )}
           </div>
 
           {/* Duplicate warning */}
@@ -206,15 +208,13 @@ export function AddBookmarkModal({
           )}
 
           {/* Tags */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="bm-tags">Tags</Label>
-            <Input
-              id="bm-tags"
-              type="text"
-              placeholder="react, typescript, tools  (comma-separated)"
-              {...register('tags')}
-            />
-          </div>
+          <TagAutocompleteInput
+            id="bm-tags"
+            label="Tags"
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+            disabled={isSubmitting}
+          />
 
           {/* Notes */}
           <div className="flex flex-col gap-1.5">
@@ -251,6 +251,7 @@ export function AddBookmarkModal({
               variant="outline"
               onClick={() => {
                 reset();
+                setSelectedTags([]);
                 onOpenChange(false);
               }}
             >

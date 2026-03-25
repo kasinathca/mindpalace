@@ -17,6 +17,7 @@ import {
   type PermanentCopyVersionSummary,
   type PermanentCopyItem,
 } from '../../api/bookmarks.api.js';
+import { getApiErrorStatus, getUserFriendlyErrorMessage } from '../../utils/apiError.js';
 import { Button } from '../ui/button.js';
 import type { BookmarkItem } from '../../api/bookmarks.api.js';
 
@@ -61,13 +62,13 @@ export function PermanentCopyViewer({
         setState({ status: 'ready', copy });
       }
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
+      const status = getApiErrorStatus(err);
       if (status === 404) {
         setState({ status: 'not-found' });
       } else {
         setState({
           status: 'failed',
-          reason: err instanceof Error ? err.message : 'Unknown error',
+          reason: getUserFriendlyErrorMessage(err, 'Unable to load saved copy right now.'),
         });
       }
     }
@@ -85,13 +86,13 @@ export function PermanentCopyViewer({
           setState({ status: 'ready', copy });
         }
       } catch (err: unknown) {
-        const status = (err as { response?: { status?: number } })?.response?.status;
+        const status = getApiErrorStatus(err);
         if (status === 404) {
           setState({ status: 'not-found' });
         } else {
           setState({
             status: 'failed',
-            reason: err instanceof Error ? err.message : 'Unknown error',
+            reason: getUserFriendlyErrorMessage(err, 'Unable to load saved copy version.'),
           });
         }
       }
@@ -111,8 +112,10 @@ export function PermanentCopyViewer({
     try {
       await apiCheckLink(bookmark.id);
       setCheckMsg('Link check queued. The status on this bookmark will update shortly.');
-    } catch {
-      setCheckMsg('Failed to queue link check. Please try again.');
+    } catch (err) {
+      setCheckMsg(
+        getUserFriendlyErrorMessage(err, 'Failed to queue link check. Please try again.'),
+      );
     } finally {
       setChecking(false);
     }
@@ -149,7 +152,7 @@ export function PermanentCopyViewer({
 
       setArchiveMsg('Archive refresh queued. New snapshot may appear shortly due to rate limits.');
     } catch (err) {
-      setArchiveMsg(err instanceof Error ? err.message : 'Failed to refresh archive.');
+      setArchiveMsg(getUserFriendlyErrorMessage(err, 'Failed to refresh archive.'));
     } finally {
       setIsRefreshingArchive(false);
     }

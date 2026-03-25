@@ -10,7 +10,9 @@ import {
   apiDeleteAnnotation,
   type AnnotationItem,
 } from '../../api/annotations.api.js';
+import { getUserFriendlyErrorMessage } from '../../utils/apiError.js';
 import { Button } from '../ui/button.js';
+import { InlineNotice } from '../common/InlineNotice.js';
 
 interface NoteCardProps {
   bookmarkId: string;
@@ -41,7 +43,7 @@ export function NoteCard({
       onUpdated?.(updated);
       setEditing(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Save failed.');
+      setError(getUserFriendlyErrorMessage(err, 'Save failed.'));
     } finally {
       setSaving(false);
     }
@@ -80,9 +82,10 @@ export function NoteCard({
             rows={3}
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
+            aria-label="Edit annotation content"
             autoFocus
           />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && <InlineNotice message={error} variant="error" size="compact" />}
           <div className="flex gap-2">
             <Button size="sm" onClick={() => void handleSave()} disabled={saving}>
               {saving ? 'Saving…' : 'Save'}

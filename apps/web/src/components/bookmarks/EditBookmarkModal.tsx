@@ -19,6 +19,8 @@ import {
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { Label } from '../ui/label.js';
+import { InlineNotice } from '../common/InlineNotice.js';
+import { TagAutocompleteInput } from './TagAutocompleteInput.js';
 import type { BookmarkItem } from '../../api/bookmarks.api.js';
 
 // ── Form schema ───────────────────────────────────────────────────────────────
@@ -27,7 +29,6 @@ const editBookmarkSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500),
   description: z.string().max(2000).optional(),
   notes: z.string().max(10_000).optional(),
-  tags: z.string().optional(), // comma-separated tag names
   isPinned: z.boolean(),
   isFavourite: z.boolean(),
   isPublic: z.boolean(),
@@ -51,6 +52,13 @@ export function EditBookmarkModal({
   onSaved,
 }: EditBookmarkModalProps): React.JSX.Element {
   const { updateBookmark } = useBookmarksStore();
+  const [selectedTags, setSelectedTags] = React.useState<string[]>(
+    bookmark.tags.map((t) => t.name),
+  );
+
+  React.useEffect(() => {
+    setSelectedTags(bookmark.tags.map((t) => t.name));
+  }, [bookmark.id, bookmark.tags]);
 
   const {
     register,
@@ -62,7 +70,6 @@ export function EditBookmarkModal({
       title: bookmark.title,
       description: bookmark.description ?? '',
       notes: bookmark.notes ?? '',
-      tags: bookmark.tags.map((t) => t.name).join(', '),
       isPinned: bookmark.isPinned,
       isFavourite: bookmark.isFavourite,
       isPublic: bookmark.isPublic,
@@ -70,18 +77,11 @@ export function EditBookmarkModal({
   });
 
   async function onSubmit(values: EditBookmarkFormValues): Promise<void> {
-    const tags = values.tags
-      ? values.tags
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter(Boolean)
-      : [];
-
     await updateBookmark(bookmark.id, {
       title: values.title,
       ...(values.description !== undefined ? { description: values.description } : {}),
       ...(values.notes !== undefined ? { notes: values.notes } : {}),
-      tags: tags.length ? tags : [],
+      tags: selectedTags,
       isPinned: values.isPinned,
       isFavourite: values.isFavourite,
       isPublic: values.isPublic,
@@ -112,7 +112,13 @@ export function EditBookmarkModal({
               {...register('title')}
               aria-invalid={!!errors.title}
             />
-            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+            {errors.title && (
+              <InlineNotice
+                message={errors.title.message ?? 'Title is required.'}
+                variant="error"
+                size="compact"
+              />
+            )}
           </div>
 
           {/* Description */}
@@ -139,15 +145,13 @@ export function EditBookmarkModal({
           </div>
 
           {/* Tags */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-tags">Tags</Label>
-            <Input
-              id="edit-tags"
-              type="text"
-              placeholder="Comma-separated: work, research, design"
-              {...register('tags')}
-            />
-          </div>
+          <TagAutocompleteInput
+            id="edit-tags"
+            label="Tags"
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+            disabled={isSubmitting}
+          />
 
           {/* Toggles */}
           <div className="flex flex-wrap gap-4">

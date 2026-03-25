@@ -43,6 +43,8 @@ vi.mock('../../lib/prisma.js', () => ({
       delete: vi.fn(),
     },
     bookmark: {
+      findMany: vi.fn(),
+      count: vi.fn(),
       updateMany: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -309,6 +311,43 @@ describe('CollectionService.updateCollection — circular reference guards', () 
       (err: unknown) => err instanceof AppError && (err as AppError).statusCode === 404,
     );
   });
+
+  it('throws NOT_FOUND when moving to a parent collection not owned by the user', async () => {
+    // Arrange — target parent exists globally but is not in user ancestry list
+    vi.mocked(prisma.collection.findUnique).mockResolvedValue(colA as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      makeAncestry('col_A', null),
+      makeAncestry('col_B', 'col_A'),
+    ] as never);
+
+    // Act & Assert
+    await expect(
+      updateCollection(USER_ID, 'col_A', { parentId: 'foreign_parent' }),
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof AppError &&
+        (err as AppError).statusCode === 404 &&
+        /parent collection not found/i.test((err as AppError).message),
+    );
+  });
+
+  it('throws BAD_REQUEST when moving a subtree would exceed max nesting depth', async () => {
+    // Arrange — moving col_A (with child col_B) under col_10 would exceed limit
+    vi.mocked(prisma.collection.findUnique).mockResolvedValue(colA as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      ...buildAncestryChain(10),
+      makeAncestry('col_A', null),
+      makeAncestry('col_B', 'col_A'),
+    ] as never);
+
+    // Act & Assert
+    await expect(updateCollection(USER_ID, 'col_A', { parentId: 'col_10' })).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof AppError &&
+        (err as AppError).statusCode === 400 &&
+        /10 levels/i.test((err as AppError).message),
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -320,6 +359,15 @@ describe('CollectionService.deleteCollection', () => {
 
   beforeEach(() => {
     vi.mocked(prisma.collection.delete).mockResolvedValue(colToDelete as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+    ] as never);
+    vi.mocked(prisma.bookmark.findMany).mockResolvedValue([
+      { id: 'bm_01' },
+      { id: 'bm_02' },
+      { id: 'bm_03' },
+    ] as never);
+    vi.mocked(prisma.bookmark.count).mockResolvedValue(3 as never);
     vi.mocked(prisma.bookmark.updateMany).mockResolvedValue({ count: 3 });
     vi.mocked(prisma.bookmark.deleteMany).mockResolvedValue({ count: 3 });
   });
@@ -332,15 +380,110 @@ describe('CollectionService.deleteCollection', () => {
     } as never);
 
     // Act
-    await deleteCollection(USER_ID, 'col_X', { action: 'delete' });
+    await expect(deleteCollection(USER_ID, 'col_X', { action: 'delete' })).resolves.toEqual({
+      action: 'delete',
+      deletedCollectionId: 'col_X',
+      affectedBookmarkCount: 3,
+    });
 
     // Assert — delete-mode removes member bookmarks explicitly
     expect(prisma.bookmark.updateMany).not.toHaveBeenCalled();
     expect(prisma.bookmark.deleteMany).toHaveBeenCalledWith({
-      where: { collectionId: 'col_X', userId: USER_ID },
+      where: { collectionId: { in: ['col_X'] }, userId: USER_ID },
     });
     expect(prisma.collection.delete).toHaveBeenCalledWith({ where: { id: 'col_X' } });
     expect(mockCacheDel).toHaveBeenCalledOnce();
+  });
+
+  it('COL-DEL-006 — action=delete removes bookmarks from the full subtree', async () => {
+    // Arrange — col_X has a descendant col_child
+    vi.mocked(prisma.collection.findUnique).mockResolvedValue({
+      ...colToDelete,
+      _count: { bookmarks: 5 },
+    } as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+      { id: 'col_child', parentId: 'col_X' },
+    ] as never);
+    vi.mocked(prisma.bookmark.count).mockResolvedValue(5 as never);
+
+    // Act
+    await expect(deleteCollection(USER_ID, 'col_X', { action: 'delete' })).resolves.toEqual({
+      action: 'delete',
+      deletedCollectionId: 'col_X',
+      affectedBookmarkCount: 5,
+    });
+
+    // Assert — query covers root + descendant
+    expect(prisma.bookmark.deleteMany).toHaveBeenCalledWith({
+      where: { collectionId: { in: ['col_X', 'col_child'] }, userId: USER_ID },
+    });
+  });
+
+  it('COL-DEL-007 — action=move relocates bookmarks from the full subtree', async () => {
+    // Arrange — source subtree: col_X -> col_child, target outside subtree
+    vi.mocked(prisma.collection.findUnique)
+      .mockResolvedValueOnce({ ...colToDelete, _count: { bookmarks: 4 } } as never)
+      .mockResolvedValueOnce(makeCollection({ id: 'col_target' }) as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+      { id: 'col_child', parentId: 'col_X' },
+      { id: 'col_target', parentId: null },
+    ] as never);
+    vi.mocked(prisma.bookmark.findMany).mockResolvedValue([
+      { id: 'bm_root_01' },
+      { id: 'bm_child_01' },
+      { id: 'bm_child_02' },
+      { id: 'bm_root_02' },
+    ] as never);
+
+    // Act
+    await expect(
+      deleteCollection(USER_ID, 'col_X', {
+        action: 'move',
+        targetCollectionId: 'col_target',
+      }),
+    ).resolves.toEqual({
+      action: 'move',
+      deletedCollectionId: 'col_X',
+      affectedBookmarkCount: 4,
+      movedBookmarkIds: ['bm_root_01', 'bm_child_01', 'bm_child_02', 'bm_root_02'],
+      targetCollectionId: 'col_target',
+    });
+
+    // Assert — move query covers both subtree levels
+    expect(prisma.bookmark.updateMany).toHaveBeenCalledWith({
+      where: { collectionId: { in: ['col_X', 'col_child'] }, userId: USER_ID },
+      data: { collectionId: 'col_target' },
+    });
+  });
+
+  it('COL-DEL-008 — action=move rejects targetCollectionId inside source subtree', async () => {
+    // Arrange — target points to descendant col_child
+    vi.mocked(prisma.collection.findUnique).mockResolvedValue({
+      ...colToDelete,
+      _count: { bookmarks: 2 },
+    } as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+      { id: 'col_child', parentId: 'col_X' },
+    ] as never);
+
+    // Act & Assert
+    await expect(
+      deleteCollection(USER_ID, 'col_X', {
+        action: 'move',
+        targetCollectionId: 'col_child',
+      }),
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof AppError &&
+        (err as AppError).statusCode === 400 &&
+        /inside the collection subtree/i.test((err as AppError).message),
+    );
+
+    expect(prisma.collection.delete).not.toHaveBeenCalled();
+    expect(prisma.bookmark.updateMany).not.toHaveBeenCalled();
   });
 
   it('COL-DEL-002 — action=move relocates bookmarks before deleting the collection', async () => {
@@ -348,16 +491,28 @@ describe('CollectionService.deleteCollection', () => {
     vi.mocked(prisma.collection.findUnique)
       .mockResolvedValueOnce({ ...colToDelete, _count: { bookmarks: 3 } } as never) // source
       .mockResolvedValueOnce(makeCollection({ id: 'col_target' }) as never); // target
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+      { id: 'col_target', parentId: null },
+    ] as never);
 
     // Act
-    await deleteCollection(USER_ID, 'col_X', {
+    await expect(
+      deleteCollection(USER_ID, 'col_X', {
+        action: 'move',
+        targetCollectionId: 'col_target',
+      }),
+    ).resolves.toEqual({
       action: 'move',
+      deletedCollectionId: 'col_X',
+      affectedBookmarkCount: 3,
+      movedBookmarkIds: ['bm_01', 'bm_02', 'bm_03'],
       targetCollectionId: 'col_target',
     });
 
     // Assert — bookmarks moved first, then collection deleted
     expect(prisma.bookmark.updateMany).toHaveBeenCalledWith({
-      where: { collectionId: 'col_X', userId: USER_ID },
+      where: { collectionId: { in: ['col_X'] }, userId: USER_ID },
       data: { collectionId: 'col_target' },
     });
     expect(prisma.bookmark.deleteMany).not.toHaveBeenCalled();
@@ -387,6 +542,10 @@ describe('CollectionService.deleteCollection', () => {
         ...makeCollection({ id: 'col_foreign' }),
         userId: OTHER_USER_ID,
       } as never); // foreign target
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_X', parentId: null },
+      { id: 'col_foreign', parentId: null },
+    ] as never);
 
     // Act & Assert
     await expect(
@@ -491,6 +650,10 @@ describe('CollectionService — cache lifecycle', () => {
       ...flatRoot,
       _count: { bookmarks: 0 },
     } as never);
+    vi.mocked(prisma.collection.findMany).mockResolvedValue([
+      { id: 'col_01', parentId: null },
+    ] as never);
+    vi.mocked(prisma.bookmark.count).mockResolvedValue(0 as never);
     vi.mocked(prisma.collection.delete).mockResolvedValue(flatRoot as never);
 
     // Act

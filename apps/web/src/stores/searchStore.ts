@@ -11,6 +11,7 @@ import {
   type SearchResponse,
   type SearchBookmarkItem,
 } from '../api/search.api.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 interface SearchState {
   query: string;
@@ -83,7 +84,7 @@ export const useSearchStore = create<SearchState>((set, get) => {
         set({ results: data.bookmarks, total: data.total, isSearching: false });
       } catch (err) {
         if (requestId !== latestRequestId) return;
-        const message = err instanceof Error ? err.message : 'Search failed';
+        const message = getUserFriendlyErrorMessage(err, 'Search failed. Please try again.');
         set({ error: message, isSearching: false });
       }
     },

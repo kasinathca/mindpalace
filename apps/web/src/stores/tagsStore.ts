@@ -13,6 +13,7 @@ import {
   type UpdateTagParams,
   type MergeTagsParams,
 } from '../api/tags.api.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 interface TagsState {
   tags: TagItem[];
@@ -37,7 +38,7 @@ export const useTagsStore = create<TagsState>((set, get) => ({
       const tags = await apiListTags();
       set({ tags, isLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load tags';
+      const message = getUserFriendlyErrorMessage(err, 'Failed to load tags.');
       set({ error: message, isLoading: false });
     }
   },

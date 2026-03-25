@@ -10,8 +10,10 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { CollectionTree } from '../collections/CollectionTree.js';
+import { DeleteCollectionDialog } from '../collections/DeleteCollectionDialog.js';
 import { Button } from '../ui/button.js';
 import { useCollectionsStore } from '../../stores/collectionsStore.js';
+import type { CollectionNode } from '../../api/collections.api.js';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -52,6 +54,7 @@ function NavItem({
 export function Sidebar({ onClose }: SidebarProps): React.JSX.Element {
   const navigate = useNavigate();
   const { createCollection } = useCollectionsStore();
+  const [deletingCollection, setDeletingCollection] = useState<CollectionNode | null>(null);
   const [creatingParentId, setCreatingParentId] = useState<string | undefined>(undefined);
   const [showNewCollectionForm, setShowNewCollectionForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -163,7 +166,10 @@ export function Sidebar({ onClose }: SidebarProps): React.JSX.Element {
 
       {/* Collection tree */}
       <nav className="flex-1 overflow-y-auto px-2 py-3">
-        <CollectionTree onCreateCollection={handleCreateCollection} />
+        <CollectionTree
+          onCreateCollection={handleCreateCollection}
+          onDeleteCollection={(node) => setDeletingCollection(node)}
+        />
 
         {/* Inline new collection form */}
         {showNewCollectionForm && (
@@ -255,6 +261,14 @@ export function Sidebar({ onClose }: SidebarProps): React.JSX.Element {
           Settings
         </NavLink>
       </div>
+
+      <DeleteCollectionDialog
+        open={Boolean(deletingCollection)}
+        collection={deletingCollection}
+        onOpenChange={(open) => {
+          if (!open) setDeletingCollection(null);
+        }}
+      />
     </div>
   );
 }

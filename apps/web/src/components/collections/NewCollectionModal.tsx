@@ -10,6 +10,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog.js';
 import { Button } from '../ui/button.js';
+import { InlineNotice } from '../common/InlineNotice.js';
 import { useCollectionsStore } from '../../stores/collectionsStore.js';
 
 // ── Form schema ───────────────────────────────────────────────────────────────
@@ -109,7 +110,13 @@ export function NewCollectionModal({
               placeholder="e.g. Research, Recipes, Reading List"
               className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            {errors.name && (
+              <InlineNotice
+                message={errors.name.message ?? 'Collection name is required.'}
+                variant="error"
+                size="compact"
+              />
+            )}
           </div>
 
           {/* Description */}
@@ -125,7 +132,11 @@ export function NewCollectionModal({
               className="resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
             {errors.description && (
-              <p className="text-xs text-destructive">{errors.description.message}</p>
+              <InlineNotice
+                message={errors.description.message ?? 'Description is too long.'}
+                variant="error"
+                size="compact"
+              />
             )}
           </div>
 
@@ -170,7 +181,13 @@ export function NewCollectionModal({
               maxLength={10}
               className="w-24 rounded-md border border-input bg-background px-3 py-2 text-center text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
-            {errors.icon && <p className="text-xs text-destructive">{errors.icon.message}</p>}
+            {errors.icon && (
+              <InlineNotice
+                message={errors.icon.message ?? 'Icon value is not valid.'}
+                variant="error"
+                size="compact"
+              />
+            )}
           </div>
 
           <DialogFooter className="mt-2">

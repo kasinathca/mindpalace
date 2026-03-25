@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import type { User, LoginInput, RegisterInput } from '@mindpalace/shared';
 import { apiLogin, apiRegister, apiLogout } from '../api/auth.api.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
 
 interface AuthState {
   user: User | null;
@@ -43,7 +44,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
         isLoading: false,
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed. Please try again.';
+      const message = getUserFriendlyErrorMessage(err, 'Login failed. Please try again.');
       set({ isLoading: false, error: message });
       throw err;
     }
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
         isLoading: false,
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Registration failed. Please try again.';
+      const message = getUserFriendlyErrorMessage(err, 'Registration failed. Please try again.');
       set({ isLoading: false, error: message });
       throw err;
     }

@@ -7,6 +7,9 @@ import type { TagItem } from '../api/tags.api.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
 import { EmptyState } from '../components/common/EmptyState.js';
+import { InlineNotice } from '../components/common/InlineNotice.js';
+import { getUserFriendlyErrorMessage } from '../utils/apiError.js';
+import { useUiStore } from '../stores/uiStore.js';
 
 // ── Colour picker swatches ────────────────────────────────────────────────────
 
@@ -29,9 +32,15 @@ interface TagRowProps {
   tag: TagItem;
   onSelect: (id: string) => void;
   isSelected: boolean;
+  selectionDisabled?: boolean;
 }
 
-function TagRow({ tag, onSelect, isSelected }: TagRowProps): React.JSX.Element {
+function TagRow({
+  tag,
+  onSelect,
+  isSelected,
+  selectionDisabled = false,
+}: TagRowProps): React.JSX.Element {
   const { updateTag, deleteTag } = useTagsStore();
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(tag.name);
@@ -66,8 +75,9 @@ function TagRow({ tag, onSelect, isSelected }: TagRowProps): React.JSX.Element {
         type="checkbox"
         checked={isSelected}
         onChange={() => onSelect(tag.id)}
+        disabled={selectionDisabled}
         className="h-4 w-4 rounded"
-        aria-label={`Select tag ${tag.name} for merge`}
+        aria-label={`Select tag ${tag.name} for bulk actions`}
       />
 
       {/* Colour dot */}
@@ -146,13 +156,15 @@ function TagRow({ tag, onSelect, isSelected }: TagRowProps): React.JSX.Element {
 // ── TagManagementPage ─────────────────────────────────────────────────────────
 
 export default function TagManagementPage(): React.ReactElement {
-  const { tags, isLoading, error, fetchTags, createTag, mergeTags } = useTagsStore();
+  const { tags, isLoading, error, fetchTags, createTag, mergeTags, deleteTag } = useTagsStore();
+  const addToast = useUiStore((s) => s.addToast);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('');
   const [creating, setCreating] = useState(false);
-  const [selectedForMerge, setSelectedForMerge] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [isMerging, setIsMerging] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [mergeError, setMergeError] = useState('');
 
   useEffect(() => {
@@ -175,9 +187,46 @@ export default function TagManagementPage(): React.ReactElement {
   }
 
   function toggleSelectForMerge(id: string): void {
-    setSelectedForMerge((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    if (id === mergeTargetId) {
+      setMergeError('A merge target cannot also be a source tag.');
+      return;
+    }
+    setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleSelectAll(): void {
+    if (selectedTagIds.length === tags.length) {
+      setSelectedTagIds([]);
+      return;
+    }
+    const ids = tags.map((t) => t.id).filter((id) => id !== mergeTargetId);
+    setSelectedTagIds(ids);
+  }
+
+  async function handleDeleteSelected(): Promise<void> {
+    if (selectedTagIds.length === 0) return;
+
+    const ok = window.confirm(
+      `Delete ${selectedTagIds.length} selected tag(s)? They will be removed from all bookmarks.`,
     );
+    if (!ok) return;
+
+    setIsBulkDeleting(true);
+    setMergeError('');
+    try {
+      await Promise.all(selectedTagIds.map(async (id) => deleteTag(id)));
+      addToast({
+        title: 'Tags deleted',
+        description: `${selectedTagIds.length} selected tag(s) were removed.`,
+        variant: 'success',
+      });
+      setSelectedTagIds([]);
+      setMergeTargetId('');
+    } catch (err) {
+      setMergeError(getUserFriendlyErrorMessage(err, 'Failed to delete selected tags.'));
+    } finally {
+      setIsBulkDeleting(false);
+    }
   }
 
   async function handleMerge(): Promise<void> {
@@ -185,15 +234,20 @@ export default function TagManagementPage(): React.ReactElement {
       setMergeError('Please select a target tag.');
       return;
     }
-    if (selectedForMerge.length === 0) {
+    if (selectedTagIds.length === 0) {
       setMergeError('Select at least one source tag.');
       return;
     }
     setMergeError('');
     setIsMerging(true);
     try {
-      await mergeTags({ sourceIds: selectedForMerge, targetId: mergeTargetId });
-      setSelectedForMerge([]);
+      await mergeTags({ sourceIds: selectedTagIds, targetId: mergeTargetId });
+      addToast({
+        title: 'Tags merged',
+        description: `${selectedTagIds.length} tag(s) were merged successfully.`,
+        variant: 'success',
+      });
+      setSelectedTagIds([]);
       setMergeTargetId('');
     } finally {
       setIsMerging(false);
@@ -244,12 +298,29 @@ export default function TagManagementPage(): React.ReactElement {
           Your Tags ({tags.length})
         </h2>
 
-        {isLoading && <p className="text-sm text-muted-foreground">Loading tags…</p>}
-        {error && (
-          <div className="mb-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
+        {tags.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card p-2">
+            <span className="text-xs text-muted-foreground">{selectedTagIds.length} selected</span>
+            <Button type="button" variant="ghost" size="sm" onClick={toggleSelectAll}>
+              {selectedTagIds.length === tags.length ? 'Clear all' : 'Select all'}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={selectedTagIds.length === 0 || isBulkDeleting}
+              onClick={() => void handleDeleteSelected()}
+            >
+              {isBulkDeleting ? 'Deleting…' : `Delete Selected (${selectedTagIds.length})`}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              Selection is also used for Merge below.
+            </span>
           </div>
         )}
+
+        {isLoading && <p className="text-sm text-muted-foreground">Loading tags…</p>}
+        {error && <InlineNotice message={error} variant="error" className="mb-3" />}
         {!isLoading && tags.length === 0 && (
           <EmptyState
             icon={<span className="text-3xl">🏷️</span>}
@@ -263,8 +334,9 @@ export default function TagManagementPage(): React.ReactElement {
             <TagRow
               key={tag.id}
               tag={tag}
-              isSelected={selectedForMerge.includes(tag.id)}
+              isSelected={selectedTagIds.includes(tag.id)}
               onSelect={toggleSelectForMerge}
+              selectionDisabled={tag.id === mergeTargetId}
             />
           ))}
         </div>
@@ -281,34 +353,43 @@ export default function TagManagementPage(): React.ReactElement {
             deleted and their bookmarks will be re-tagged with the target.
           </p>
 
-          {mergeError && <p className="mb-2 text-xs text-destructive">{mergeError}</p>}
+          {mergeError && (
+            <InlineNotice message={mergeError} variant="error" size="compact" className="mb-2" />
+          )}
 
           <div className="mb-3 flex items-center gap-2">
-            <label className="text-sm">Merge into:</label>
+            <label htmlFor="merge-target" className="text-sm">
+              Merge into:
+            </label>
             <select
+              id="merge-target"
               value={mergeTargetId}
               onChange={(e) => setMergeTargetId(e.target.value)}
               className="rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">— select target —</option>
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
+              {tags
+                .filter((t) => !selectedTagIds.includes(t.id))
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
             </select>
           </div>
 
           <div className="flex items-center gap-2">
             <Button
               type="button"
-              disabled={isMerging || selectedForMerge.length === 0 || !mergeTargetId}
+              disabled={
+                isMerging || isBulkDeleting || selectedTagIds.length === 0 || !mergeTargetId
+              }
               onClick={() => void handleMerge()}
             >
-              {isMerging ? 'Merging…' : `Merge ${selectedForMerge.length} tag(s)`}
+              {isMerging ? 'Merging…' : `Merge ${selectedTagIds.length} tag(s)`}
             </Button>
-            {selectedForMerge.length > 0 && (
-              <Button type="button" variant="ghost" onClick={() => setSelectedForMerge([])}>
+            {selectedTagIds.length > 0 && (
+              <Button type="button" variant="ghost" onClick={() => setSelectedTagIds([])}>
                 Clear selection
               </Button>
             )}

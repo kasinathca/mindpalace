@@ -37,6 +37,14 @@ export interface UpdateCollectionParams {
   icon?: string | null;
 }
 
+export interface DeleteCollectionResult {
+  action: 'move' | 'delete';
+  deletedCollectionId: string;
+  affectedBookmarkCount: number;
+  movedBookmarkIds?: string[];
+  targetCollectionId?: string;
+}
+
 export async function apiGetCollectionTree(): Promise<CollectionNode[]> {
   const res = await apiClient.get<ApiSuccessResponse<CollectionNode[]>>('/api/v1/collections');
   return res.data.data;
@@ -65,13 +73,17 @@ export async function apiDeleteCollection(
   id: string,
   action: 'move' | 'delete' = 'delete',
   targetCollectionId?: string,
-): Promise<void> {
-  await apiClient.delete(`/api/v1/collections/${id}`, {
-    params: {
-      action,
-      ...(targetCollectionId ? { targetCollectionId } : {}),
+): Promise<DeleteCollectionResult> {
+  const res = await apiClient.delete<ApiSuccessResponse<DeleteCollectionResult>>(
+    `/api/v1/collections/${id}`,
+    {
+      params: {
+        action,
+        ...(targetCollectionId ? { targetCollectionId } : {}),
+      },
     },
-  });
+  );
+  return res.data.data;
 }
 
 export async function apiReorderCollection(id: string, sortOrder: number): Promise<void> {

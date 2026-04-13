@@ -134,19 +134,6 @@ Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting pull requests
 
 ---
 
-## Team
-
-| Name               | Student ID |
-| ------------------ | ---------- |
-| Kasinath C A       | 24MID0124  |
-| Nicky Sheby        | 24MID0156  |
-| Sree Sai Madhurima | 24MIC0078  |
-| Balini             | 24MIC0026  |
-
-**University:** Vellore Institute of Technology  
-**Module:** CSI1007 — Software Engineering Principles
-
----
 
 ## Licence
 
